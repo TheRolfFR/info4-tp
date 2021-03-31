@@ -17,6 +17,7 @@
  ******************************************************************************
  */
 #include <stdint.h>
+#include <string.h>
 #include <stm32f4xx.h>
 #include "usart.h"
 
@@ -107,7 +108,7 @@ void init_capture() {
 
 	// Mettre la vitesse du Timer 4
 	// TIM4  bits: max(ARR) = 2^16 - 1
-	TIM4->PSC = 0; // prescaler to 1
+	TIM4->PSC = 16-1; // prescaler to 16
 	TIM4->ARR = 0xFFFF;
 
 	// activer les modifications CCMR2
@@ -169,9 +170,9 @@ void ex2_big_loop() {
 
     uint32_t bufferSize = 200;
     uint8_t buffer[200];
-    for(uint32_t i = 0; i < bufferSize; ++i) buffer[i] = 0;
+    memset(buffer, 0, 200);
 
-    USART2_BigLoop_Transmit((uint8_t*) "La boulette\r\n", (uint8_t) sizeof("La boulette\r\n"));
+    char logBuffer[500];
     USART2_BigLoop_Receive(buffer, bufferSize);
 
 	while(1) {
@@ -218,8 +219,16 @@ void ex2_big_loop() {
 
     		// ne pas changer le calcul optimisé
     		//in ms : (pulse*tim->PSC)/(SystemCoreClock/1000); // (pulse*1000/frequ)
-    		time_overflow_ms = (overflow * TIM4->PSC+1) / (SystemCoreClock / 1000);
-    		time_diff_ms = (timespan * TIM4->PSC+1) / (SystemCoreClock / 1000);
+    		time_overflow_ms = (overflow) / (SystemCoreClock / (TIM4->PSC+1) / 1000);
+    		time_diff_ms = (timespan) / (SystemCoreClock / (TIM4->PSC+1) / 1000);
+
+    	    memset(logBuffer, 0, 500);
+    	    strcat(logBuffer, "Nouveau log duree:\r\n");
+    	    sprintf(logBuffer+strlen(logBuffer), "Valeur overflow: %hu\r\n", overflow);
+    	    sprintf(logBuffer+strlen(logBuffer), "Valeur timespan: %hu\r\n", timespan);
+    	    sprintf(logBuffer+strlen(logBuffer), "Duree overflow ms: %hu\r\n", time_overflow_ms);
+    	    sprintf(logBuffer+strlen(logBuffer), "Duree time ms: %hu\r\n", time_diff_ms);
+    	    USART2_BigLoop_Transmit((uint8_t*) logBuffer, strlen(logBuffer)+1);
 
 			// clear CC1IF interrupt flag
 			TIM4->SR &= ~TIM_SR_CC1IF;

@@ -47,6 +47,12 @@ uint8_t USART2_BigLoop_TransmitEnded();
  */
 uint8_t USART2_BigLoop_Receive(uint8_t * data, uint32_t length);
 
+/**
+ * @brief gradually receive buffer
+ * @retval returns 0 if char was receive, !=0 else
+ */
+uint8_t USART2_BigLoop_ReceiveBuffer();
+
 
 /**
  * @brief Check receive buffer size
