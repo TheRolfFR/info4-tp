@@ -1,0 +1,14 @@
+usart.c:16:6:USART2_Init	32	static
+usart.c:86:6:USART2_DeInit	4	static
+usart.c:102:6:USART2_Transmit	24	static
+usart.c:121:5:__io_putchar	16	static
+usart.c:139:5:__io_getchar	4	static
+usart.c:154:9:USART2_Receive	32	static
+usart.c:194:9:USART2_BigLoop_sendChar	16	static
+usart.c:208:9:USART2_BigLoop_isCharSent	4	static
+usart.c:223:9:USART2_BigLoop_Transmit	16	static
+usart.c:239:9:USART2_BigLoop_TransmitBuffer	16	static
+usart.c:261:9:USART2_BigLoop_TransmitEnded	8	static
+usart.c:274:9:USART2_BigLoop_Receive	16	static
+usart.c:290:9:USART2_BigLoop_ReceiveBuffer	8	static
+usart.c:310:9:USART2_BigLoop_ReceiveFull	4	static
