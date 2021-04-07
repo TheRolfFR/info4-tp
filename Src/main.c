@@ -28,7 +28,7 @@ extern uint32_t SystemCoreClock;
   #warning "FPU is not initialized, but the project is compiling for an FPU. Please initialize the FPU before use."
 #endif
 
-void init_pwm() {
+void pwm_init() {
 
 	// 4 étapes par (1/2) => 0.5s => 500ms
 	// la duree totale de 0% à 100% sera : etapes * numerateur / denominateur en secondes
@@ -91,7 +91,7 @@ void init_pwm() {
 	TIM5->EGR |= TIM_EGR_UG;
 }
 
-void init_capture() {
+void capture_init() {
 	// le USER BUTTON est en pull up
 	// donc quand pressé fait haut->bas->haut
 
@@ -162,15 +162,22 @@ uint32_t timespan;
 uint32_t time_overflow_ms;
 uint32_t time_diff_ms;
 uint32_t tick_duration;
-uint32_t overflow = 0;
+uint32_t overrun = 0;
 uint16_t ccr1, ccr2;
 
+uint8_t mixe = 0;
 
 uint32_t bufferSize = 200;
 uint8_t receiveBuffer[200];
 char logBuffer[500];
 
-void change_pwm() {
+uint8_t flag = 0;
+#define TIM5_OVR_FLAG 1
+#define TIM4_OVR_FLAG 2
+#define TIM4_CC1_FLAG 4
+#define TIM4_CC2_FLAG 8
+
+void pwm_change() {
 	if(compteur % etapes == 0) {
 		croissant = !croissant;
 	}
@@ -181,63 +188,48 @@ void change_pwm() {
 		--compteur;
 
 	TIM2->CCR1 = compteur * TIM2->ARR / etapes;
-
-	// on clear l'interrupt flag d'update
-	TIM5->SR = TIM5->SR & (~TIM_SR_UIF);
 }
 
-void update_capture(uint8_t (*USART2_Transmit)(uint8_t*, uint32_t)) {
-	// capture
-	if(TIM4->SR & TIM_SR_UIF) {
-		++overflow;
-		if(overflow == UINT32_MAX) {
-			__NOP();
-		}
+void capture_update_start() {
+	// CC2IF est ddescendant donc début
 
-		TIM4->SR &= ~TIM_SR_UIF;
+	// restart the overrun counter
+	overrun = 0;
+
+	// get the ccr2 value
+	ccr2 = TIM4->CCR2;
+}
+
+void capture_update_overrun() {
+	++overrun;
+	if(overrun == UINT32_MAX) {
+		__NOP();
+	}
+}
+
+void capture_update_end(uint8_t (*USART2_Transmit)(uint8_t*, uint32_t)) {
+	// CCR1 est montant donc fin
+	ccr1 = TIM4->CCR1;
+
+
+	if(ccr1 > ccr2) {
+		timespan = ccr1 - ccr2;
+	} else {
+		overrun--;
+		timespan = (ccr1 + TIM4->ARR + 1) - ccr2;
 	}
 
-	if((TIM4->SR & TIM_SR_CC1IF))  {
-		// CCR1 est montant donc fin
-		ccr1 = TIM4->CCR1;
+	// pour faire court, un overflow dure (ARR+1) / (SystemCoreClock / (PSC + 1)) secondes (car on est en Hertz)
+	tick_duration = timespan + overrun * ((TIM4->ARR)+1);
+	time_diff_ms = tick_duration / (SystemCoreClock / (TIM4->PSC+1) / 1000);
 
-
-		if(ccr1 > ccr2) {
-			timespan = ccr1 - ccr2;
-		} else {
-			overflow--;
-			timespan = (ccr1 + TIM4->ARR + 1) - ccr2;
-		}
-
-		// pour faire court, un overflow dure (ARR+1) / (SystemCoreClock / (PSC + 1)) secondes (car on est en Hertz)
-		tick_duration = timespan + overflow * ((TIM4->ARR)+1);
-		time_diff_ms = tick_duration / (SystemCoreClock / (TIM4->PSC+1) / 1000);
-
-	    memset(logBuffer, 0, 500);
-	    strcat(logBuffer, "Nouveau log duree:\r\n");
-	    sprintf(logBuffer+strlen(logBuffer), "Valeur overflow: %lu\r\n", overflow);
-	    sprintf(logBuffer+strlen(logBuffer), "Valeur timespan: %lu\r\n", timespan);
-	    sprintf(logBuffer+strlen(logBuffer), "Valeur tick: %lu\r\n", tick_duration);
-	    sprintf(logBuffer+strlen(logBuffer), "Duree time ms: %lu\r\n", time_diff_ms);
-	    USART2_Transmit((uint8_t*)logBuffer, strlen(logBuffer) + 1);
-
-		// clear CC1IF interrupt flag
-		TIM4->SR &= ~TIM_SR_CC1IF;
-	}
-
-	if((TIM4->SR & TIM_SR_CC2IF)) {
-		// CC2IF est ddescendant donc début
-
-		// restart the overflow counter
-		overflow = 0;
-
-		// get the ccr2 value
-		ccr2 = TIM4->CCR2;
-
-
-		// clear CC1IF interrupt flag
-		TIM4->SR &= ~TIM_SR_CC2IF;
-	}
+    memset(logBuffer, 0, 500);
+    strcat(logBuffer, "Nouveau log duree:\r\n");
+    sprintf(logBuffer+strlen(logBuffer), "Valeur overflow: %lu\r\n", overrun);
+    sprintf(logBuffer+strlen(logBuffer), "Valeur timespan: %lu\r\n", timespan);
+    sprintf(logBuffer+strlen(logBuffer), "Valeur tick: %lu\r\n", tick_duration);
+    sprintf(logBuffer+strlen(logBuffer), "Duree time ms: %lu\r\n", time_diff_ms);
+    USART2_Transmit((uint8_t*)logBuffer, strlen(logBuffer) + 1);
 }
 
 void ex2_big_loop() {
@@ -247,10 +239,29 @@ void ex2_big_loop() {
 	while(1) {
 		// PWM update
 		if(TIM5->SR & TIM_SR_UIF) { // a chaque update
-			change_pwm();
+			pwm_change();
+			// on clear l'interrupt flag d'update
+			TIM5->SR = TIM5->SR & (~TIM_SR_UIF);
 		}
 
-		update_capture(USART2_BigLoop_Transmit);
+		// capture
+		if(TIM4->SR & TIM_SR_UIF) {
+			capture_update_overrun();
+			// clear UIF interrupt flag
+			TIM4->SR &= ~TIM_SR_UIF;
+		}
+
+		if((TIM4->SR & TIM_SR_CC1IF))  {
+			capture_update_end(USART2_BigLoop_Transmit);
+			// clear CC1IF interrupt flag
+			TIM4->SR &= ~TIM_SR_CC1IF;
+		}
+
+		if((TIM4->SR & TIM_SR_CC2IF)) {
+			capture_update_start();
+			// clear CC1IF interrupt flag
+			TIM4->SR &= ~TIM_SR_CC2IF;
+		}
 
     	//usart
     	USART2_BigLoop_ReceiveBuffer();
@@ -258,14 +269,7 @@ void ex2_big_loop() {
 	}
 }
 
-void init_interrupt_usart() {
-	NVIC_SetPriority(USART2_IRQn, 2); // l'usart pourra passer après
-	NVIC_EnableIRQ(USART2_IRQn);
-	USART2->CR1	|= USART_CR1_RXNEIE; // permet d'utiliser les fonctions pour le receive
-	USART2->CR1 &= ~USART_CR1_TXEIE; // on activera USART_CR1_TXEIE si on en a besoin
-}
-
-void init_interrupts() {
+void interrupts_init() {
 	// on pourrait mettre la priority group to 3
 //	NVIC_SetPriorityGrouping(3);
 	// Bit[7..4] preempt priority bits
@@ -282,22 +286,58 @@ void init_interrupts() {
 	NVIC_EnableIRQ(TIM4_IRQn);
 	TIM4->DIER |= TIM_DIER_UIE | TIM_DIER_CC1IE | TIM_DIER_CC2IE;
 
-	init_interrupt_usart();
+	NVIC_SetPriority(USART2_IRQn, 2); // l'usart pourra passer après
+	NVIC_EnableIRQ(USART2_IRQn);
+	USART2->CR1	|= USART_CR1_RXNEIE; // permet d'utiliser les fonctions pour le receive
+	USART2->CR1 &= ~USART_CR1_TXEIE; // on activera USART_CR1_TXEIE si on en a besoin
 }
 
 void TIM5_IRQHandler(void) {
+	if(mixe){ // si je suis en mode mixe je le ferai dans le main
+		flag |= TIM5_OVR_FLAG; // je dis au flag de rajouter l'overflow sur le timer 4
+		TIM5->SR = TIM5->SR & (~TIM_SR_UIF);
+		return;
+	}
+
 	if(TIM5->SR & TIM_SR_UIF && TIM5->DIER & TIM_DIER_UIE) {
-		change_pwm();
+		pwm_change();
+		TIM5->SR = TIM5->SR & (~TIM_SR_UIF);
 	}
 }
 
 void TIM4_IRQHandler(void) {
-	if(
-		((TIM4->DIER & TIM_DIER_UIE) && (TIM4->SR & TIM_SR_UIF)) ||
-		((TIM4->DIER & TIM_DIER_CC1IE) && (TIM4->SR & TIM_SR_CC1IF)) ||
-		((TIM4->DIER & TIM_DIER_CC2IE) && (TIM4->SR & TIM_SR_CC2IF))
-	) {
-		update_capture(USART2_transmit_IRQ);
+	if(mixe){ // si je suis en mode mixe je le ferai dans le main
+		if((TIM4->DIER & TIM_DIER_UIE) && (TIM4->SR & TIM_SR_UIF)){
+			flag |= TIM4_OVR_FLAG;
+			TIM4->SR &= ~TIM_SR_UIF;
+		}
+		if((TIM4->DIER & TIM_DIER_CC1IE) && (TIM4->SR & TIM_SR_CC1IF)) {
+			flag |= TIM4_CC1_FLAG;
+			TIM4->SR &= ~TIM_SR_CC1IF;
+		}
+		if((TIM4->DIER & TIM_DIER_CC2IE) && (TIM4->SR & TIM_SR_CC2IF)) {
+			flag |= TIM4_CC2_FLAG;
+			TIM4->SR &= ~TIM_SR_CC2IF;
+		}
+		return;
+	}
+
+	// overrun
+	if((TIM4->DIER & TIM_DIER_UIE) && (TIM4->SR & TIM_SR_UIF)) {
+		capture_update_overrun();
+		TIM4->SR &= ~TIM_SR_UIF;
+	}
+
+	// cc1 front montant donc fin
+	if((TIM4->DIER & TIM_DIER_CC1IE) && (TIM4->SR & TIM_SR_CC1IF)) {
+		capture_update_end(USART2_transmit_IRQ);
+		TIM4->SR &= ~TIM_SR_CC1IF;
+	}
+
+	// cc2 front descendant donc début
+	if((TIM4->DIER & TIM_DIER_CC2IE) && (TIM4->SR & TIM_SR_CC2IF)) {
+		capture_update_start();
+		TIM4->SR &= ~TIM_SR_CC2IF;
 	}
 }
 
@@ -315,21 +355,10 @@ void USART2_IRQHandler() {
 	}
 }
 
-int main(void)
-{
-	init_pwm();
-	init_capture();
-	USART2_Init(115200);
-
-    memset(receiveBuffer, 0, 200);
-
-    // 2. Mode big loop
-//	ex2_big_loop();
-
-    // 3. Mode interrupt
+void ex3_interrupt() {
 	__disable_irq();
-	init_interrupts();
-	__enable_irq(); // en dernier on les acive
+	interrupts_init();
+	__enable_irq(); // en dernier on active
 
 	// 3.4.1.
 //	while(1) {
@@ -339,4 +368,64 @@ int main(void)
 	// 3.4.2.
 	SCB->SCR |= SCB_SCR_SLEEPONEXIT_Msk;
 	__WFI();
+}
+
+void ex35_mixage() {
+	// on met seulement l'interrupt pour l'usart
+	__disable_irq();
+	interrupts_init();
+	USART2->CR1 |= USART_CR1_IDLEIE; // on rajoute la génération d'interrupt dans idle
+	__enable_irq();
+
+	mixe = 1;
+
+	while(1) {
+		// ici flag est un octet contenant toutes les interruptions qu'on a gardé de coté dans une autre variable
+		if(flag & TIM5_OVR_FLAG) {
+			pwm_change();
+			flag &= ~TIM5_OVR_FLAG;
+		}
+
+		// overrun du compteur
+		if(flag & TIM4_OVR_FLAG) {
+			capture_update_overrun();
+			flag &= ~TIM4_OVR_FLAG;
+		}
+
+		// front montant donc fin
+		if(flag & TIM4_CC1_FLAG) {
+			capture_update_end(USART2_transmit_IRQ);
+			flag &= ~TIM4_CC1_FLAG;
+		}
+
+		// front descedant donc début
+		if(flag & TIM4_CC2_FLAG) {
+			capture_update_start();
+			flag &= ~TIM4_CC2_FLAG;
+		}
+
+		__WFI();
+	}
+}
+
+int main(void)
+{
+	// l'initialisation est commune à toutes les parties du TP
+	pwm_init();
+	capture_init();
+	USART2_Init(115200);
+
+	// on reset le buffer de réception de l'usart car on est respectueux
+    memset(receiveBuffer, 0, 200);
+
+    // les exercices
+
+    // 2. Mode big loop
+//	ex2_big_loop();
+
+    // 3. Mode interrupt
+//    ex3_interrupt();
+
+	// 3.5. Mixage
+	ex35_mixage();
 }
