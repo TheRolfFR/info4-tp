@@ -258,6 +258,13 @@ void ex2_big_loop() {
 	}
 }
 
+void init_interrupt_usart() {
+	NVIC_SetPriority(USART2_IRQn, 2); // l'usart pourra passer après
+	NVIC_EnableIRQ(USART2_IRQn);
+	USART2->CR1	|= USART_CR1_RXNEIE; // permet d'utiliser les fonctions pour le receive
+	USART2->CR1 &= ~USART_CR1_TXEIE; // on activera USART_CR1_TXEIE si on en a besoin
+}
+
 void init_interrupts() {
 	// on pourrait mettre la priority group to 3
 //	NVIC_SetPriorityGrouping(3);
@@ -275,11 +282,7 @@ void init_interrupts() {
 	NVIC_EnableIRQ(TIM4_IRQn);
 	TIM4->DIER |= TIM_DIER_UIE | TIM_DIER_CC1IE | TIM_DIER_CC2IE;
 
-	NVIC_SetPriority(USART2_IRQn, 2); // l'usart pourra passer après
-	NVIC_EnableIRQ(USART2_IRQn);
-	USART2->CR1	|= USART_CR1_RXNEIE; // on activera USART_CR1_TXEIE si on en a besoin
-
-	__enable_irq();
+	init_interrupt_usart();
 }
 
 void TIM5_IRQHandler(void) {
@@ -324,10 +327,16 @@ int main(void)
 //	ex2_big_loop();
 
     // 3. Mode interrupt
+	__disable_irq();
 	init_interrupts();
+	__enable_irq(); // en dernier on les acive
 
 	// 3.4.1.
-	while(1) {
-		__WFI(); // Waiiiiiit for iiiiiinterruption
-	}
+//	while(1) {
+//		__WFI(); // Waiiiiiit for iiiiiinterruption
+//	}
+
+	// 3.4.2.
+	SCB->SCR |= SCB_SCR_SLEEPONEXIT_Msk;
+	__WFI();
 }
