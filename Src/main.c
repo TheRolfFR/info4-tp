@@ -326,7 +326,8 @@ int main(void)
     // 3. Mode interrupt
 	init_interrupts();
 
+	// 3.4.1.
 	while(1) {
-		__NOP();
+		__WFI(); // Waiiiiiit for iiiiiinterruption
 	}
 }
