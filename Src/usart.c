@@ -104,7 +104,7 @@ void USART2_Transmit(uint8_t * data, uint32_t length) {
 	if(data == 0x0 || length == 0)
 		return;
 
-	// j'attends que TC soit à un au cas où
+	// j'attends que TC soit à un au cas où quelqu'un d'autre est déjà en train de transmettre
 	while((USART2->SR & USART_SR_TC) == 0);
 
 	// j'envoie chaque caractère
@@ -124,9 +124,6 @@ int __io_putchar(int ch){
 
 	// on écrit la valeur dans DR
 	USART2->DR = ch;
-
-	// j'attends d'être bien transmis
-	while((USART2->SR & USART_SR_TC) == 0);
 
 	// je me retourne car je me suis bien envoyé
 	return ch;
@@ -208,7 +205,7 @@ uint8_t USART2_BigLoop_sendChar(uint8_t ch) {
 uint8_t USART2_BigLoop_isCharSent() {
 //	0: Transmission is not complete
 //	1: Transmission is complete
-	return (USART2->SR & USART_SR_TC) >> USART_SR_TC_Pos;
+	return (USART2->SR & USART_SR_TXE) >> USART_SR_TXE_Pos;
 }
 
 uint8_t* data_pointer = NULL;
@@ -288,18 +285,18 @@ uint8_t USART2_BigLoop_Receive(uint8_t * data, uint32_t length) {
  * @retval returns 0 if char was receive, !=0 else
  */
 uint8_t USART2_BigLoop_ReceiveBuffer() {
-	// if full nope
+	// tu rentres pas si c'est plein désolé
 	if(receive_index == receive_length)
 		return 1;
 
-	// if empty nope
+	// tu fais rien si c'est vide
 	if((USART2->SR & USART_SR_RXNE) == 0)
 		return 1;
 
-	// get it
+	// tu le récupères
 	receive_buffer[receive_index++] = (USART2->DR & 0xFF);
 
-	// get out
+	// et tu sors
 	return 0;
 }
 
