@@ -310,3 +310,17 @@ uint8_t USART2_BigLoop_ReceiveBuffer() {
 uint8_t USART2_BigLoop_ReceiveFull() {
 	return receive_buffer != 0 && receive_index == receive_length;
 }
+
+/**
+ * @Brief send a buffer in non-blocking way
+ * @retval returns 0 if changed the buffer, 1 if parameter error
+ */
+uint8_t USART2_transmit_IRQ (uint8_t* buffer, uint32_t len) {
+	uint32_t ret = USART2_BigLoop_Transmit(buffer, len);
+
+	if(ret == 0) {
+		USART2->CR1 |= USART_CR1_TXEIE;
+	}
+
+	return ret;
+}

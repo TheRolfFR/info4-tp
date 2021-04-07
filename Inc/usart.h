@@ -59,3 +59,9 @@ uint8_t USART2_BigLoop_ReceiveBuffer();
  * @retval returns 1 if full, 0 else
  */
 uint8_t USART2_BigLoop_ReceiveFull();
+
+/**
+ * @Brief send a buffer in non-blocking way
+ * @retval returns 0 if changed the buffer, 1 if parameter error
+ */
+uint8_t USART2_transmit_IRQ (uint8_t* buffer, uint32_t len);

@@ -16,6 +16,7 @@
  *
  ******************************************************************************
  */
+#include <stdio.h>
 #include <stdint.h>
 #include <string.h>
 #include <stm32f4xx.h>
@@ -151,106 +152,163 @@ void init_capture() {
     TIM4->EGR |= TIM_EGR_UG;
 }
 
+// variables pwm
+uint16_t etapes = 4;
+uint16_t compteur = 0;
+uint8_t croissant = 0; // croissant premiere fois
+
+// variables capture
+uint32_t timespan;
+uint32_t time_overflow_ms;
+uint32_t time_diff_ms;
+uint32_t tick_duration;
+uint32_t overflow = 0;
+uint16_t ccr1, ccr2;
+
+
+uint32_t bufferSize = 200;
+uint8_t receiveBuffer[200];
+char logBuffer[500];
+
+void change_pwm() {
+	if(compteur % etapes == 0) {
+		croissant = !croissant;
+	}
+
+	if(croissant)
+		++compteur;
+	else
+		--compteur;
+
+	TIM2->CCR1 = compteur * TIM2->ARR / etapes;
+
+	// on clear l'interrupt flag d'update
+	TIM5->SR = TIM5->SR & (~TIM_SR_UIF);
+}
+
+void update_capture(uint8_t (*USART2_Transmit)(uint8_t*, uint32_t)) {
+	// capture
+	if(TIM4->SR & TIM_SR_UIF) {
+		++overflow;
+		if(overflow == UINT32_MAX) {
+			__NOP();
+		}
+
+		TIM4->SR &= ~TIM_SR_UIF;
+	}
+
+	if((TIM4->SR & TIM_SR_CC1IF))  {
+		// CCR1 est montant donc fin
+		ccr1 = TIM4->CCR1;
+
+
+		if(ccr1 > ccr2) {
+			timespan = ccr1 - ccr2;
+		} else {
+			overflow--;
+			timespan = (ccr1 + TIM4->ARR + 1) - ccr2;
+		}
+
+		// pour faire court, un overflow dure (ARR+1) / (SystemCoreClock / (PSC + 1)) secondes (car on est en Hertz)
+		tick_duration = timespan + overflow * ((TIM4->ARR)+1);
+		time_diff_ms = tick_duration / (SystemCoreClock / (TIM4->PSC+1) / 1000);
+
+	    memset(logBuffer, 0, 500);
+	    strcat(logBuffer, "Nouveau log duree:\r\n");
+	    sprintf(logBuffer+strlen(logBuffer), "Valeur overflow: %lu\r\n", overflow);
+	    sprintf(logBuffer+strlen(logBuffer), "Valeur timespan: %lu\r\n", timespan);
+	    sprintf(logBuffer+strlen(logBuffer), "Valeur tick: %lu\r\n", tick_duration);
+	    sprintf(logBuffer+strlen(logBuffer), "Duree time ms: %lu\r\n", time_diff_ms);
+	    USART2_Transmit((uint8_t*)logBuffer, strlen(logBuffer) + 1);
+
+		// clear CC1IF interrupt flag
+		TIM4->SR &= ~TIM_SR_CC1IF;
+	}
+
+	if((TIM4->SR & TIM_SR_CC2IF)) {
+		// CC2IF est ddescendant donc début
+
+		// restart the overflow counter
+		overflow = 0;
+
+		// get the ccr2 value
+		ccr2 = TIM4->CCR2;
+
+
+		// clear CC1IF interrupt flag
+		TIM4->SR &= ~TIM_SR_CC2IF;
+	}
+}
+
 void ex2_big_loop() {
 
-	// variables pwm
-	uint16_t etapes = 4;
-	uint16_t compteur = 0;
-	uint8_t croissant = 0; // croissant premiere fois
-
-	// variables capture
-    uint32_t timespan;
-    uint32_t time_overflow_ms;
-    (void) time_overflow_ms;
-	uint32_t time_diff_ms;
-    (void) time_diff_ms;
-    uint32_t overflow = 0;
-    uint16_t ccr1, ccr2;
-
-
-    uint32_t bufferSize = 200;
-    uint8_t buffer[200];
-    memset(buffer, 0, 200);
-
-    char logBuffer[500];
-    USART2_BigLoop_Receive(buffer, bufferSize);
+    USART2_BigLoop_Receive(receiveBuffer, bufferSize);
 
 	while(1) {
 		// PWM update
 		if(TIM5->SR & TIM_SR_UIF) { // a chaque update
-			if(compteur % etapes == 0) {
-				croissant = !croissant;
-			}
-
-			if(croissant)
-				++compteur;
-			else
-				--compteur;
-
-			TIM2->CCR1 = compteur * TIM2->ARR / etapes;
-
-			// on clear l'interrupt flag d'update
-			TIM5->SR = TIM5->SR & (~TIM_SR_UIF);
+			change_pwm();
 		}
 
-		// capture
-    	if(TIM4->SR & TIM_SR_UIF) {
-    		++overflow;
-    		if(overflow == UINT32_MAX) {
-    			__NOP();
-    		}
-
-    		TIM4->SR &= ~TIM_SR_UIF;
-		}
-
-    	if((TIM4->SR & TIM_SR_CC1IF))  {
-    		// CCR1 est montant donc fin
-    		ccr1 = TIM4->CCR1;
-
-
-    		if(ccr1 > ccr2) {
-    			timespan = ccr1 - ccr2;
-    		} else {
-    			overflow--;
-    			timespan = (ccr1 + TIM4->ARR + 1) - ccr2;
-    		}
-
-    		// pour faire court, un overflow dure (ARR+1) / (SystemCoreClock / (PSC + 1)) secondes (car on est en Hertz)
-
-    		// ne pas changer le calcul optimisé
-    		//in ms : (pulse*tim->PSC)/(SystemCoreClock/1000); // (pulse*1000/frequ)
-    		time_overflow_ms = (overflow) / (SystemCoreClock / (TIM4->PSC+1) / 1000);
-    		time_diff_ms = (timespan) / (SystemCoreClock / (TIM4->PSC+1) / 1000);
-
-    	    memset(logBuffer, 0, 500);
-    	    strcat(logBuffer, "Nouveau log duree:\r\n");
-    	    sprintf(logBuffer+strlen(logBuffer), "Valeur overflow: %hu\r\n", overflow);
-    	    sprintf(logBuffer+strlen(logBuffer), "Valeur timespan: %hu\r\n", timespan);
-    	    sprintf(logBuffer+strlen(logBuffer), "Duree overflow ms: %hu\r\n", time_overflow_ms);
-    	    sprintf(logBuffer+strlen(logBuffer), "Duree time ms: %hu\r\n", time_diff_ms);
-    	    USART2_BigLoop_Transmit((uint8_t*) logBuffer, strlen(logBuffer)+1);
-
-			// clear CC1IF interrupt flag
-			TIM4->SR &= ~TIM_SR_CC1IF;
-    	}
-
-    	if((TIM4->SR & TIM_SR_CC2IF)) {
-    		// CC2IF est ddescendant donc début
-
-    		// restart the overflow counter
-			overflow = 0;
-
-			// get the ccr2 value
-    		ccr2 = TIM4->CCR2;
-
-
-			// clear CC1IF interrupt flag
-			TIM4->SR &= ~TIM_SR_CC2IF;
-		}
+		update_capture(USART2_BigLoop_Transmit);
 
     	//usart
     	USART2_BigLoop_ReceiveBuffer();
     	USART2_BigLoop_TransmitBuffer();
+	}
+}
+
+void init_interrupts() {
+	// on pourrait mettre la priority group to 3
+//	NVIC_SetPriorityGrouping(3);
+	// Bit[7..4] preempt priority bits
+	// Bit[3..0] subpriority Bits, not implemented
+
+	// on met une priorité moyenne et active les interruptions pour les overflows du timer 5
+	NVIC_SetPriority(TIM5_IRQn, 1);
+	NVIC_EnableIRQ (TIM5_IRQn);
+	TIM5->DIER = TIM_DIER_UIE; // activer les interruptions
+
+	// on met une priorité hautee et on active les interruptions
+	// pour les overflows et les capture compare du timer 4
+	NVIC_SetPriority(TIM4_IRQn, 0); // rendre tim4 plus prioritaire (valeur plus faible)
+	NVIC_EnableIRQ(TIM4_IRQn);
+	TIM4->DIER |= TIM_DIER_UIE | TIM_DIER_CC1IE | TIM_DIER_CC2IE;
+
+	NVIC_SetPriority(USART2_IRQn, 2); // l'usart pourra passer après
+	NVIC_EnableIRQ(USART2_IRQn);
+	USART2->CR1	|= USART_CR1_RXNEIE; // on activera USART_CR1_TXEIE si on en a besoin
+
+	__enable_irq();
+}
+
+void TIM5_IRQHandler(void) {
+	if(TIM5->SR & TIM_SR_UIF && TIM5->DIER & TIM_DIER_UIE) {
+		change_pwm();
+	}
+}
+
+void TIM4_IRQHandler(void) {
+	if(
+		((TIM4->DIER & TIM_DIER_UIE) && (TIM4->SR & TIM_SR_UIF)) ||
+		((TIM4->DIER & TIM_DIER_CC1IE) && (TIM4->SR & TIM_SR_CC1IF)) ||
+		((TIM4->DIER & TIM_DIER_CC2IE) && (TIM4->SR & TIM_SR_CC2IF))
+	) {
+		update_capture(USART2_transmit_IRQ);
+	}
+}
+
+void USART2_IRQHandler() {
+	if((USART2->CR1 & USART_CR1_TXEIE) && (USART2->SR & USART_SR_TXE)) {
+		USART2_BigLoop_TransmitBuffer();
+		uint8_t ended = USART2_BigLoop_TransmitEnded();
+		if(ended) {
+			USART2->CR1 &= ~USART_CR1_TXEIE;
+		}
+	}
+
+	if((USART2->CR1 & USART_CR1_TXEIE) && (USART2->SR & USART_SR_TXE)) {
+		USART2_BigLoop_ReceiveBuffer();
 	}
 }
 
@@ -260,5 +318,15 @@ int main(void)
 	init_capture();
 	USART2_Init(115200);
 
-	ex2_big_loop();
+    memset(receiveBuffer, 0, 200);
+
+    // 2. Mode big loop
+//	ex2_big_loop();
+
+    // 3. Mode interrupt
+	init_interrupts();
+
+	while(1) {
+		__NOP();
+	}
 }
