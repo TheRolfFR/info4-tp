@@ -20,9 +20,72 @@
 #include <stdint.h>
 #include <string.h>
 #include <stm32f4xx.h>
-#include "usart.h"
+#include "system.h"
+#include <string.h>
+
+extern volatile struct TCB_t * current_tcb;
+
+#define STACK_SIZE 500
+uint32_t stack0[STACK_SIZE];
+volatile TCB TCB0;
+
+#define INDEX_EXEC_RETURN 17
+#define INDEX_CONTROL 16
+#define INDEX_RETURNADDR 1
+#define INDEX_XPSR 0
+
+#define GPIO_LED GPIOA
+#define GPIO_PIN_LED 5
+
+uint32_t max1;
+uint32_t max2;
+uint32_t max;
+uint32_t counter;
+
+void blink_init() {
+	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
+
+	// PA5 out
+	GPIO_LED->MODER &= ~(0b11 << (GPIO_PIN_LED * 2));
+	GPIO_LED->MODER |= (0b1 << (GPIO_PIN_LED * 2));
+
+	max1 = 100000;
+	max2 = max1 * 3;
+	max = max2;
+	counter = 0;
+}
+
+void blink_loop() {
+	(void) max;
+	(void) max1;
+	(void) max2;
+
+	if(counter < max) {
+		++counter;
+	} else {
+		uint8_t newLedState = ! (GPIO_LED->ODR & (1 << GPIO_PIN_LED));
+		GPIO_LED->ODR &= (~(1 << GPIO_PIN_LED));
+		GPIO_LED->ODR |= (newLedState << GPIO_PIN_LED);
+		counter = 0;
+	}
+}
 
 int main(void)
 {
+	blink_init();
 
+	TCB0.next = &TCB0;
+	TCB0.stack = stack0 + STACK_SIZE - 18;
+
+	current_tcb = &TCB0;
+
+	uint32_t *ctx = TCB0.stack;
+	// exec return mode : Thread = 0xFFFFFFFD donc pile PSP
+	ctx[INDEX_EXEC_RETURN] = 0xFFFFFFFD;
+	ctx[INDEX_CONTROL] = 3;
+	memset(ctx+ 2, 0, 14);
+	ctx[INDEX_RETURNADDR] = 0x01000000;
+	ctx[INDEX_XPSR] = blink_loop;
+
+	SVC(0);
 }
