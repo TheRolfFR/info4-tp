@@ -1,7 +1,7 @@
 void USART2_Init(uint32_t baud);
 void USART2_DeInit(void);
 int __io_putchar(int ch);
-void USART2_Transmit(uint8_t * data, uint32_t length);
+uint8_t USART2_Transmit(uint8_t * data, uint32_t length);
 int __io_getchar(void);
 int32_t USART2_Receive(uint8_t * data, uint32_t len, uint32_t delay);
 
@@ -25,7 +25,7 @@ uint8_t USART2_BigLoop_sendChar(uint8_t ch);
  * @param length Data size in bytes
  * @retval returns 0 if changed the buffer, 1 if parameter error
  */
-uint8_t USART2_BigLoop_Transmit(uint8_t * data, uint32_t length);
+uint8_t USART2_Transmit_BigLoop(uint8_t * data, uint32_t length);
 
 /**
  * @brief gradually transmits buffer
@@ -64,4 +64,4 @@ uint8_t USART2_BigLoop_ReceiveFull();
  * @Brief send a buffer in non-blocking way
  * @retval returns 0 if changed the buffer, 1 if parameter error
  */
-uint8_t USART2_transmit_IRQ (uint8_t* buffer, uint32_t len);
+uint8_t USART2_Transmit_IRQ (uint8_t* buffer, uint32_t len);

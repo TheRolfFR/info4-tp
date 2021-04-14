@@ -99,10 +99,10 @@ void USART2_DeInit(void)
  * @param length Longueur du buffer \p data
  * @retval None
  */
-void USART2_Transmit(uint8_t * data, uint32_t length) {
+uint8_t USART2_Transmit(uint8_t * data, uint32_t length) {
 	// éviter les pointeurs nuls et opérations inutiles
 	if(data == 0x0 || length == 0)
-		return;
+		return 1;
 
 	// j'attends que TC soit à un au cas où quelqu'un d'autre est déjà en train de transmettre
 	while((USART2->SR & USART_SR_TC) == 0);
@@ -111,6 +111,8 @@ void USART2_Transmit(uint8_t * data, uint32_t length) {
 	for(uint32_t i = 0; i < length; ++i) {
 		__io_putchar((uint32_t) data[i]);
 	}
+
+	return 0;
 }
 
 /**
@@ -217,7 +219,7 @@ uint32_t data_length = 0;
  * @param length Data size in bytes
  * @retval returns 0 if changed the buffer, 1 if parameter error
  */
-uint8_t USART2_BigLoop_Transmit(uint8_t * data, uint32_t length) {
+uint8_t USART2_Transmit_BigLoop(uint8_t * data, uint32_t length) {
 	// reject if invalid pointer or changed to different pointer when not finished
 	if(data == NULL || (data_pointer != NULL && data != data_pointer && data_index < data_length))
 		return 1;
@@ -312,8 +314,8 @@ uint8_t USART2_BigLoop_ReceiveFull() {
  * @Brief send a buffer in non-blocking way
  * @retval returns 0 if changed the buffer, 1 if parameter error
  */
-uint8_t USART2_transmit_IRQ (uint8_t* buffer, uint32_t len) {
-	uint32_t ret = USART2_BigLoop_Transmit(buffer, len);
+uint8_t USART2_Transmit_IRQ (uint8_t* buffer, uint32_t len) {
+	uint32_t ret = USART2_Transmit_BigLoop(buffer, len);
 
 	if(ret == 0) {
 		USART2->CR1 |= USART_CR1_TXEIE;

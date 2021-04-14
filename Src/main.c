@@ -252,7 +252,7 @@ void ex2_big_loop() {
 		}
 
 		if((TIM4->SR & TIM_SR_CC1IF))  {
-			capture_update_end(USART2_BigLoop_Transmit);
+			capture_update_end(USART2_Transmit_BigLoop);
 			// clear CC1IF interrupt flag
 			TIM4->SR &= ~TIM_SR_CC1IF;
 		}
@@ -330,7 +330,7 @@ void TIM4_IRQHandler(void) {
 
 	// cc1 front montant donc fin
 	if((TIM4->DIER & TIM_DIER_CC1IE) && (TIM4->SR & TIM_SR_CC1IF)) {
-		capture_update_end(USART2_transmit_IRQ);
+		capture_update_end(USART2_Transmit_IRQ);
 		TIM4->SR &= ~TIM_SR_CC1IF;
 	}
 
@@ -342,16 +342,25 @@ void TIM4_IRQHandler(void) {
 }
 
 void USART2_IRQHandler() {
+	// test tx : si interruption activée et déclenchée
 	if((USART2->CR1 & USART_CR1_TXEIE) && (USART2->SR & USART_SR_TXE)) {
-		USART2_BigLoop_TransmitBuffer();
+		USART2_BigLoop_TransmitBuffer(); // transmet caractère suivant
+
+		// désactiver interruption si fini
 		uint8_t ended = USART2_BigLoop_TransmitEnded();
 		if(ended) {
 			USART2->CR1 &= ~USART_CR1_TXEIE;
 		}
 	}
 
-	if((USART2->CR1 & USART_CR1_TXEIE) && (USART2->SR & USART_SR_TXE)) {
-		USART2_BigLoop_ReceiveBuffer();
+	// test rx : si interruption activée et déclenchée
+	if((USART2->CR1 & USART_CR1_RXNEIE) && (USART2->SR & USART_SR_RXNE)) {
+		USART2_BigLoop_ReceiveBuffer(); // reçoit caractère suivant
+	}
+
+	// test rx repos: si interruption activée et déclenchée
+	if((USART2->CR1 & USART_CR1_IDLEIE) && (USART2->SR & USART_SR_IDLE)) {
+		USART2->SR &= ~USART_SR_IDLE;
 	}
 }
 
@@ -387,14 +396,14 @@ void ex35_mixage() {
 		}
 
 		// overrun du compteur
-		if(flag & TIM4_OVR_FLAG) {
-			capture_update_overrun();
-			flag &= ~TIM4_OVR_FLAG;
-		}
+if(flag & TIM4_OVR_FLAG) {
+	capture_update_overrun();
+	flag &= ~TIM4_OVR_FLAG;
+}
 
 		// front montant donc fin
 		if(flag & TIM4_CC1_FLAG) {
-			capture_update_end(USART2_transmit_IRQ);
+			capture_update_end(USART2_Transmit_IRQ);
 			flag &= ~TIM4_CC1_FLAG;
 		}
 
