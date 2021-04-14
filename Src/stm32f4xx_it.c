@@ -254,6 +254,6 @@ __attribute__( ( naked ) ) void PendSV_Handler(void)
 
 void SysTick_Handler(void)
 {
-
+	SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
 }
 

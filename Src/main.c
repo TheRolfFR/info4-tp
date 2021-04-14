@@ -23,11 +23,12 @@
 #include "system.h"
 #include <string.h>
 
+extern uint32_t SystemCoreClock;
 extern volatile struct TCB_t * current_tcb;
 
 #define STACK_SIZE 500
-uint32_t stack0[STACK_SIZE];
-volatile TCB TCB0;
+uint32_t blinkStack[STACK_SIZE];
+volatile TCB blinkTCB;
 
 #define INDEX_EXEC_RETURN 17
 #define INDEX_CONTROL 16
@@ -37,36 +38,29 @@ volatile TCB TCB0;
 #define GPIO_LED GPIOA
 #define GPIO_PIN_LED 5
 
-uint32_t max1;
-uint32_t max2;
-uint32_t max;
-uint32_t counter;
-
 void blink_init() {
 	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
 
 	// PA5 out
 	GPIO_LED->MODER &= ~(0b11 << (GPIO_PIN_LED * 2));
 	GPIO_LED->MODER |= (0b1 << (GPIO_PIN_LED * 2));
-
-	max1 = 100000;
-	max2 = max1 * 3;
-	max = max2;
-	counter = 0;
 }
 
 void blink_loop() {
-	(void) max;
-	(void) max1;
-	(void) max2;
+	uint32_t max1 = 100000;
+	uint32_t max2 = max1 * 3;
+	uint32_t max = max2;
+	uint32_t counter;
 
-	if(counter < max) {
-		++counter;
-	} else {
-		uint8_t newLedState = ! (GPIO_LED->ODR & (1 << GPIO_PIN_LED));
-		GPIO_LED->ODR &= (~(1 << GPIO_PIN_LED));
-		GPIO_LED->ODR |= (newLedState << GPIO_PIN_LED);
-		counter = 0;
+	while(1) {
+		if(counter < max) {
+			++counter;
+		} else {
+			uint8_t newLedState = ! (GPIO_LED->ODR & (1 << GPIO_PIN_LED));
+			GPIO_LED->ODR &= (~(1 << GPIO_PIN_LED));
+			GPIO_LED->ODR |= (newLedState << GPIO_PIN_LED);
+			counter = 0;
+		}
 	}
 }
 
@@ -74,18 +68,28 @@ int main(void)
 {
 	blink_init();
 
-	TCB0.next = &TCB0;
-	TCB0.stack = stack0 + STACK_SIZE - 18;
+	blinkTCB.next = &blinkTCB;
+	blinkTCB.stack = blinkStack + STACK_SIZE - 18;
 
-	current_tcb = &TCB0;
+	current_tcb = &blinkTCB;
 
-	uint32_t *ctx = TCB0.stack;
 	// exec return mode : Thread = 0xFFFFFFFD donc pile PSP
-	ctx[INDEX_EXEC_RETURN] = 0xFFFFFFFD;
-	ctx[INDEX_CONTROL] = 3;
-	memset(ctx+ 2, 0, 14);
-	ctx[INDEX_RETURNADDR] = 0x01000000;
-	ctx[INDEX_XPSR] = blink_loop;
+	blinkTCB.stack[INDEX_EXEC_RETURN] = 0xFFFFFFFD;
+	blinkTCB.stack[INDEX_CONTROL] = 3;
+	memset(blinkTCB.stack + 2, 0, 14);
+
+	// j'ai suivi l'annexe mais ça ne marchait pas
+	// j'ai vu que le code se bloquait à l'adresse de la valeurde XPSR
+	blinkTCB.stack[INDEX_RETURNADDR] = 0x01000000; // quand j'ai inversé INDEX_XPSR et INDEX_RETURNADDR ça marchait
+	blinkTCB.stack[INDEX_XPSR] = (uint32_t) blink_loop;
+
+	SysTick_Config(SystemCoreClock / 10000 );
+	NVIC_EnableIRQ(SysTick_IRQn);
 
 	SVC(0);
+
+	// ne devrait jamais venir ici
+	while(1) {
+		__NOP();
+	}
 }
