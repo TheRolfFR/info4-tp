@@ -22,18 +22,51 @@
 #include <stm32f4xx.h>
 #include "system.h"
 #include <string.h>
+#include "usart.h"
 
+extern uint32_t scheduler;
 extern uint32_t SystemCoreClock;
 extern volatile struct TCB_t * current_tcb;
 
 #define STACK_SIZE 500
-uint32_t blinkStack[STACK_SIZE];
-volatile TCB blinkTCB;
+typedef struct _task {
+	uint32_t stack[STACK_SIZE];
+	volatile TCB tcb;
+} Task_t;
 
 #define INDEX_EXEC_RETURN 17
 #define INDEX_CONTROL 16
-#define INDEX_RETURNADDR 1
-#define INDEX_XPSR 0
+#define INDEX_RETURNADDR 0
+#define INDEX_XPSR 1
+
+volatile Task_t tasks[3];
+volatile void* functions[3];
+
+/**
+ * @brief initialise la task avec le TCB suivant et la fonction de démarrage
+ * @param[in] t La structure tache à initialiser
+ * @param next Le TCB suivant
+ * @param fun Adresse de la fonction à lancer au démarrage
+ */
+void task_init(volatile Task_t *t, volatile TCB* next, volatile void* fun) {
+	// on fait le plus facile on lie le suivant et on pose le stack
+	t->tcb.next = next;
+	t->tcb.stack = &(t->stack[STACK_SIZE - 18]);
+
+	// exec return mode : Thread = 0xFFFFFFFD donc pile PSP
+	t->tcb.stack[INDEX_EXEC_RETURN] = 0xFFFFFFFD;
+
+	// CONTROL : mode d'ouverture 2=privilégié, 3=non priviligié
+	t->tcb.stack[INDEX_CONTROL] = (uint32_t) 3;
+
+	// specific xpsr value
+	t->tcb.stack[INDEX_XPSR] = 0x01000000;
+
+	memset((uint8_t*) &(t->tcb.stack[2]), 0, 14*sizeof(uint32_t));
+
+	// on met la fonction ici
+	t->tcb.stack[INDEX_RETURNADDR] = (uint32_t) fun;
+}
 
 #define GPIO_LED GPIOA
 #define GPIO_PIN_LED 5
@@ -41,16 +74,17 @@ volatile TCB blinkTCB;
 void blink_init() {
 	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
 
-	// PA5 out
+	// PA5 sortie : 01
 	GPIO_LED->MODER &= ~(0b11 << (GPIO_PIN_LED * 2));
 	GPIO_LED->MODER |= (0b1 << (GPIO_PIN_LED * 2));
 }
 
+uint32_t max1 = 100000;
+uint32_t max2 = 300000;
+uint32_t max  = 100000;
+
 void blink_loop() {
-	uint32_t max1 = 100000;
-	uint32_t max2 = max1 * 3;
-	uint32_t max = max2;
-	uint32_t counter;
+	uint32_t counter = 0;
 
 	while(1) {
 		if(counter < max) {
@@ -64,32 +98,84 @@ void blink_loop() {
 	}
 }
 
+#define GPIO_BUTTON GPIOC
+#define GPIO_PIN_BUTTON 13
+
+void button_init() {
+	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOCEN;
+
+	// PC13 entrée
+	GPIO_TypeDef* gpioc = GPIO_BUTTON;
+	gpioc->MODER &= ~(0b11 << (GPIO_PIN_BUTTON * 2)); // in : 00
+}
+
+void button_loop() {
+	// compteurs de debounce
+	uint32_t debounce = 250000;
+	uint32_t decounceCounter = debounce;
+
+	for(;;) {
+		if(decounceCounter < debounce) {
+			++decounceCounter;
+		} else {
+			// le user button est en pull-up donc s'il est appuyé, sa valeur vaut 0
+			if((GPIO_BUTTON->IDR & (1 << GPIO_PIN_BUTTON)) == 0) {
+				max = (max == max1) ? max2 : max1;
+				decounceCounter = 0;
+			}
+		}
+	}
+}
+
+void usart_init() {
+	USART2_Init(115200);
+}
+
+void usart_loop() {
+	USART2_Transmit((uint8_t*) "HI", 3);
+}
+
+void task_yield() {
+	SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
+}
+
+void enter_critical() {
+	scheduler = 0;
+}
+
+void exit_critical() {
+	scheduler = 1;
+}
+
 int main(void)
 {
+
 	blink_init();
+	button_init();
+	usart_init();
 
-	blinkTCB.next = &blinkTCB;
-	blinkTCB.stack = blinkStack + STACK_SIZE - 18;
+	functions[0] = blink_loop;
+	functions[1] = button_loop;
+	functions[2] = usart_loop;
 
-	current_tcb = &blinkTCB;
+	for(uint8_t i = 0; i < 3; ++i) {
+		task_init(&(tasks[i]), &(tasks[(i+1)%3].tcb), functions[i]);
+	}
 
-	// exec return mode : Thread = 0xFFFFFFFD donc pile PSP
-	blinkTCB.stack[INDEX_EXEC_RETURN] = 0xFFFFFFFD;
-	blinkTCB.stack[INDEX_CONTROL] = 3;
-	memset(blinkTCB.stack + 2, 0, 14);
+	current_tcb = &(tasks[0].tcb);
 
-	// j'ai suivi l'annexe mais ça ne marchait pas
-	// j'ai vu que le code se bloquait à l'adresse de la valeurde XPSR
-	blinkTCB.stack[INDEX_RETURNADDR] = 0x01000000; // quand j'ai inversé INDEX_XPSR et INDEX_RETURNADDR ça marchait
-	blinkTCB.stack[INDEX_XPSR] = (uint32_t) blink_loop;
+	NVIC_SetPriority (PendSV_IRQn, 15);
+	NVIC_EnableIRQ (PendSV_IRQn);
+	SysTick_Config(SystemCoreClock / 1000);
 
-	SysTick_Config(SystemCoreClock / 10000 );
-	NVIC_EnableIRQ(SysTick_IRQn);
+	// autoriser le changement de contexte
+	scheduler = 1;
 
 	SVC(0);
+//	SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
 
 	// ne devrait jamais venir ici
 	while(1) {
-		__NOP();
+		__WFI();
 	}
 }
