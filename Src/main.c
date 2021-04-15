@@ -163,15 +163,13 @@ int main(void)
 	}
 
 	current_tcb = &(tasks[0].tcb);
+	tasks[0].tcb.next = &(tasks[0].tcb);
+
+	SVC(0);
 
 	NVIC_SetPriority (PendSV_IRQn, 15);
 	NVIC_EnableIRQ (PendSV_IRQn);
 	SysTick_Config(SystemCoreClock / 1000);
-
-	// autoriser le changement de contexte
-	scheduler = 1;
-
-	SVC(0);
 //	SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
 
 	// ne devrait jamais venir ici
