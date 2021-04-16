@@ -83,6 +83,18 @@ uint32_t max1 = 100000;
 uint32_t max2 = 300000;
 uint32_t max  = 100000;
 
+void task_yield() {
+	SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
+}
+
+void enter_critical() {
+	scheduler = 0;
+}
+
+void exit_critical() {
+	scheduler = 1;
+}
+
 void blink_loop() {
 	uint32_t counter = 0;
 
@@ -121,6 +133,10 @@ void button_loop() {
 			// le user button est en pull-up donc s'il est appuyé, sa valeur vaut 0
 			if((GPIO_BUTTON->IDR & (1 << GPIO_PIN_BUTTON)) == 0) {
 				max = (max == max1) ? max2 : max1;
+
+				char chaine[] = "Bouton appuyé\r\n";
+				USART2_Transmit((uint8_t*) chaine, strlen(chaine) + 1);
+
 				decounceCounter = 0;
 			}
 		}
@@ -132,47 +148,52 @@ void usart_init() {
 }
 
 void usart_loop() {
-	USART2_Transmit((uint8_t*) "HI", 3);
-}
+	uint32_t counter;
+	char chaine[] = "Heartbeat : Je suis vivant !\r\n";
+	while(1) {
+		USART2_Transmit((uint8_t*) chaine, strlen(chaine) + 1);
 
-void task_yield() {
-	SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
-}
-
-void enter_critical() {
-	scheduler = 0;
-}
-
-void exit_critical() {
-	scheduler = 1;
+		counter = 0;
+		while(counter < max2) {
+			++counter;
+		}
+	}
 }
 
 int main(void)
 {
-
+	// j'initialise toutes mes taches
 	blink_init();
 	button_init();
 	usart_init();
 
+	// je met mes fonctions dans un tableau pour écrire le round robin plus facilement
 	functions[0] = blink_loop;
 	functions[1] = button_loop;
 	functions[2] = usart_loop;
 
+	// j'initiaise toutes les structures tache
 	for(uint8_t i = 0; i < 3; ++i) {
 		task_init(&(tasks[i]), &(tasks[(i+1)%3].tcb), functions[i]);
 	}
 
+	// je prend le premier tcb pour le current tcb
 	current_tcb = &(tasks[0].tcb);
+
+	// Si vous voulez tester avec une seule tache
 //	tasks[0].tcb.next = &(tasks[0].tcb);
 
+	// On met les priorité et on active pendingSV
 	NVIC_SetPriority (PendSV_IRQn, 15);
 	NVIC_EnableIRQ (PendSV_IRQn);
-	SysTick_Config(SystemCoreClock / 1000);
 
+	// on démarre la clock avec déclenchement de 10ms
+	SysTick_Config(SystemCoreClock / 10000);
+
+	// on lance la première tache et on active le scheduler
 	SVC(0);
-//	SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
 
-	// ne devrait jamais venir ici
+	// on ne devrait jamais venir ici normalement
 	while(1) {
 		__NOP();
 	}
