@@ -34,10 +34,10 @@ typedef struct _task {
 	volatile TCB tcb;
 } Task_t;
 
-#define INDEX_EXEC_RETURN 17
-#define INDEX_CONTROL 16
-#define INDEX_RETURNADDR 0
-#define INDEX_XPSR 1
+#define INDEX_EXEC_RETURN 0
+#define INDEX_CONTROL 1
+#define INDEX_RETURNADDR 16
+#define INDEX_XPSR 17
 
 volatile Task_t tasks[3];
 volatile void* functions[3];
@@ -163,17 +163,17 @@ int main(void)
 	}
 
 	current_tcb = &(tasks[0].tcb);
-	tasks[0].tcb.next = &(tasks[0].tcb);
-
-	SVC(0);
+//	tasks[0].tcb.next = &(tasks[0].tcb);
 
 	NVIC_SetPriority (PendSV_IRQn, 15);
 	NVIC_EnableIRQ (PendSV_IRQn);
 	SysTick_Config(SystemCoreClock / 1000);
+
+	SVC(0);
 //	SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
 
 	// ne devrait jamais venir ici
 	while(1) {
-		__WFI();
+		__NOP();
 	}
 }
