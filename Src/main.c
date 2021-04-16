@@ -151,7 +151,9 @@ void usart_loop() {
 	uint32_t counter;
 	char chaine[] = "Heartbeat : Je suis vivant !\r\n";
 	while(1) {
+		enter_critical();
 		USART2_Transmit((uint8_t*) chaine, strlen(chaine) + 1);
+		exit_critical();
 
 		counter = 0;
 		while(counter < max2) {
