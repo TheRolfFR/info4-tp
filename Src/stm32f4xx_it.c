@@ -1,6 +1,5 @@
 /* Includes ------------------------------------------------------------------*/
-#include "stm32f4xx.h"   
-#include "main.h"
+#include "stm32f4xx.h"
 #include "system.h"
 
 /* Private typedef -----------------------------------------------------------*/
@@ -55,6 +54,9 @@ void HardFault_Handler(void)
 	uint32_t x,y,z;
 	x = SCB->HFSR;
 	y = SCB->CFSR;
+	(void) x;
+	(void) y;
+	(void) z;
   /* Go to infinite loop when Hard Fault exception occurs */
   while (1)
   {
@@ -71,6 +73,7 @@ void MemManage_Handler(void)
 	// for debug purpose
 	uint32_t x;
 	x = SCB->CFSR;
+	(void) x;
 
   /* Go to infinite loop when Memory Manage exception occurs */
   while (1)
@@ -87,6 +90,7 @@ void BusFault_Handler(void)
 {
 	uint32_t x;
 	x = SCB->CFSR;
+	(void) x;
   /* Go to infinite loop when Bus Fault exception occurs */
   while (1)
   {
@@ -103,6 +107,7 @@ void UsageFault_Handler(void)
 	// for debug purpose
 	uint32_t x;
 	x = SCB->CFSR;
+	(void) x;
   /* Go to infinite loop when Usage Fault exception occurs */
   while (1)
   {
@@ -164,18 +169,8 @@ __asm volatile(
 void SVC_C (uint32_t * stack, uint32_t svc_number)
 {
 	switch(svc_number){
-		case 0 :	// start scheduler, already implemented in SVC_Handler
-			/* what is done in SVC_Handler is : set the global variable
-			 * scheduler to enable task switching and
-			 * restore the context of the first task to start :
-			 */
-//			scheduler = 1;
-//			RESTORE_CONTEXT();
-			break;
-		// other service number can be implemented in here :
-		case 1 :
-			break;
-		case 2 :
+		case TASK_YIELD:
+			SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
 			break;
 		default :
 			break;

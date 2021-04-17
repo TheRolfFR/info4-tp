@@ -323,3 +323,33 @@ uint8_t USART2_Transmit_IRQ (uint8_t* buffer, uint32_t len) {
 
 	return ret;
 }
+
+
+char buffer[11] = {0};
+/**
+ * @brief Converts unsigned integer to a string into the source file string buffer
+ * @return Result string pointer
+ */
+char* uint2str(uint32_t integer) {
+	uint32_t index = 0;
+
+	// faire un do while pour avoir 0 aussi
+	do {
+		buffer[index++] = '0' + (integer % 10);
+		integer /= 10;
+	} while(integer != 0);
+
+	// inverser pour avoir les nombres dans le bon sens
+	char tmp;
+	for(uint32_t i = 0; i < index/2; ++i) {
+		tmp = buffer[i];
+		buffer[i] = buffer[index - i - 1];
+		buffer[index - i - 1] = tmp;
+	}
+
+	// caractère de fin de chaine de caractère
+	buffer[index] = '\0';
+
+	// retourne le buffer source
+	return buffer;
+}

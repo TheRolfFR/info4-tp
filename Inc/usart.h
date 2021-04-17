@@ -65,3 +65,9 @@ uint8_t USART2_BigLoop_ReceiveFull();
  * @retval returns 0 if changed the buffer, 1 if parameter error
  */
 uint8_t USART2_Transmit_IRQ (uint8_t* buffer, uint32_t len);
+
+/**
+ * @brief Converts unsigned integer to a string into the source file string buffer
+ * @return Result string pointer
+ */
+char* uint2str(uint32_t integer);

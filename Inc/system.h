@@ -8,6 +8,12 @@ typedef struct TCB_t {
     volatile struct TCB_t * next;
 } TCB;
 
+/**
+ * @brief Numero SVC pour le changement de tache
+ * @warning doit etre != 0
+ */
+#define TASK_YIELD 1
+
 #define SVC(code) asm volatile ("svc %0" : : "I" (code) )
 
 /**

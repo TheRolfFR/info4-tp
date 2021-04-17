@@ -24,21 +24,38 @@
 #include <string.h>
 #include "usart.h"
 
+// Définitions activation exercices
+#define ACTIVER_AUTRES_TACHES  1
+#define ACTIVER_YIELD_CRITIQUE 1
+#define UNE_SEULE_TACHE (!defined(ACTIVER_AUTRES_TACHES) || ACTIVER_AUTRES_TACHES == 0)
+#define YIELD_CRITIQUE defined(ACTIVER_YIELD_CRITIQUE) && ACTIVER_YIELD_CRITIQUE == 1
+
+// Définitions GPIOs et broches
+#define GPIO_LED GPIOA
+#define GPIO_PIN_LED 5
+#define GPIO_BOUTON GPIOC
+#define GPIO_PIN_BOUTON 13
+
+// variable externes
 extern uint32_t scheduler;
 extern uint32_t SystemCoreClock;
 extern volatile struct TCB_t * current_tcb;
 
+// Définitions de nos taches
 #define STACK_SIZE 500
+// Structure custom pour les taches
 typedef struct _task {
-	uint32_t stack[STACK_SIZE];
-	volatile TCB tcb;
+	uint32_t stack[STACK_SIZE]; // notre stack
+	volatile TCB tcb; // notre TCB
 } Task_t;
 
+// Indices pour les champs de la stack frame
 #define INDEX_EXEC_RETURN 0
 #define INDEX_CONTROL 1
 #define INDEX_RETURNADDR 16
 #define INDEX_XPSR 17
 
+// volatiles pour éviter les optimisations en mémoire
 volatile Task_t tasks[3];
 volatile void* functions[3];
 
@@ -57,7 +74,7 @@ void task_init(volatile Task_t *t, volatile TCB* next, volatile void* fun) {
 	t->tcb.stack[INDEX_EXEC_RETURN] = 0xFFFFFFFD;
 
 	// CONTROL : mode d'ouverture 2=privilégié, 3=non priviligié
-	t->tcb.stack[INDEX_CONTROL] = (uint32_t) 3;
+	t->tcb.stack[INDEX_CONTROL] = (uint32_t) 2;
 
 	// specific xpsr value
 	t->tcb.stack[INDEX_XPSR] = 0x01000000;
@@ -68,13 +85,37 @@ void task_init(volatile Task_t *t, volatile TCB* next, volatile void* fun) {
 	t->tcb.stack[INDEX_RETURNADDR] = (uint32_t) fun;
 }
 
-#define GPIO_LED GPIOA
-#define GPIO_PIN_LED 5
+void task_yield() {
+#if YIELD_CRITIQUE
+	SVC(TASK_YIELD);
+#endif
+}
+
+#if YIELD_CRITIQUE
+uint32_t critical = 0;
+#endif
+void enter_critical() {
+#if YIELD_CRITIQUE
+	scheduler = 0;
+	__disable_irq();
+	++critical;
+#endif
+}
+
+void exit_critical() {
+#if YIELD_CRITIQUE
+	if(--critical == 0) {
+		__enable_irq();
+		scheduler = 1;
+	}
+#endif
+}
 
 void blink_init() {
+	// on active le GPIOA
 	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
 
-	// PA5 sortie : 01
+	// PA5 sortie : MODER = 01
 	GPIO_LED->MODER &= ~(0b11 << (GPIO_PIN_LED * 2));
 	GPIO_LED->MODER |= (0b1 << (GPIO_PIN_LED * 2));
 }
@@ -83,107 +124,130 @@ uint32_t max1 = 100000;
 uint32_t max2 = 300000;
 uint32_t max  = 100000;
 
-void task_yield() {
-	SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
-}
-
-void enter_critical() {
-	scheduler = 0;
-}
-
-void exit_critical() {
-	scheduler = 1;
-}
-
+// Tache de la LED
 void blink_loop() {
-	uint32_t counter = 0;
+	uint32_t counter;
 
 	while(1) {
-		if(counter < max) {
+		counter = 0;
+		while(counter < max) {
 			++counter;
-		} else {
-			uint8_t newLedState = ! (GPIO_LED->ODR & (1 << GPIO_PIN_LED));
-			GPIO_LED->ODR &= (~(1 << GPIO_PIN_LED));
-			GPIO_LED->ODR |= (newLedState << GPIO_PIN_LED);
-			counter = 0;
 		}
+
+		uint8_t newLedState = ! (GPIO_LED->ODR & (1 << GPIO_PIN_LED));
+		GPIO_LED->ODR &= (~(1 << GPIO_PIN_LED));
+		GPIO_LED->ODR |= (newLedState << GPIO_PIN_LED);
+
+		task_yield();
 	}
 }
 
-#define GPIO_BUTTON GPIOC
-#define GPIO_PIN_BUTTON 13
-
+// Fonction d'initialisation de bouton
 void button_init() {
 	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOCEN;
 
 	// PC13 entrée
-	GPIO_TypeDef* gpioc = GPIO_BUTTON;
-	gpioc->MODER &= ~(0b11 << (GPIO_PIN_BUTTON * 2)); // in : 00
+	GPIO_TypeDef* gpioc = GPIO_BOUTON;
+	gpioc->MODER &= ~(0b11 << (GPIO_PIN_BOUTON * 2)); // in : 00
 }
 
+// Tache du bouton
 void button_loop() {
-	// compteurs de debounce
+	// délai entre chaque bouton pressé
 	uint32_t debounce = 250000;
+
+	// je démarre le debounce counter avec la valeur
+	// de debounce pour faire marcher le bouton tout de suite
 	uint32_t decounceCounter = debounce;
 
-	for(;;) {
-		if(decounceCounter < debounce) {
+	while(1) {
+		// je mets un compteur de debounce pour
+		// mettre un delai pendant les appuis
+		while(decounceCounter < debounce) {
 			++decounceCounter;
-		} else {
-			// le user button est en pull-up donc s'il est appuyé, sa valeur vaut 0
-			if((GPIO_BUTTON->IDR & (1 << GPIO_PIN_BUTTON)) == 0) {
-				max = (max == max1) ? max2 : max1;
-
-				char chaine[] = "Bouton appuyé\r\n";
-				USART2_Transmit((uint8_t*) chaine, strlen(chaine) + 1);
-
-				decounceCounter = 0;
-			}
 		}
+
+		// si le bouton est appuyé (user button en pullup) (= 0)
+		if((GPIO_BOUTON->IDR & (1 << GPIO_PIN_BOUTON)) == 0) {
+			max = (max == max1) ? max2 : max1;
+
+			char chaine[] = "Bouton appuyé\r\n";
+			enter_critical();
+			USART2_Transmit((uint8_t*) chaine, strlen(chaine) + 1);
+			exit_critical();
+
+			decounceCounter = 0;
+		}
+
+		// je suis généreux
+		// je lache la main pour le suivant
+		task_yield();
 	}
 }
 
+// Fonction d'initialisation de périphérique pour la tache usart
 void usart_init() {
 	USART2_Init(115200);
 }
 
+// Tache usart
 void usart_loop() {
+	// compteur de délai
 	uint32_t counter;
-	char chaine[] = "Heartbeat : Je suis vivant !\r\n";
-	while(1) {
-		enter_critical();
-		USART2_Transmit((uint8_t*) chaine, strlen(chaine) + 1);
-		exit_critical();
 
+	// indice du heartbeat
+	uint32_t messageIndex = 0;
+
+	// forme du message à envoyer
+	char prefix[] = "Heartbeat ";
+	char* messageIndexChar = NULL;
+	char suffix[] = " : Je suis vivant !\r\n";
+
+	while(1) {
+		// délai d'attente entre les messages
 		counter = 0;
 		while(counter < max2) {
 			++counter;
 		}
+
+		// je transmet mon heartbeat
+		USART2_Transmit((uint8_t*) prefix, strlen(prefix));
+		messageIndexChar = uint2str(messageIndex++);
+		USART2_Transmit((uint8_t*) messageIndexChar, strlen(messageIndexChar) + 1);
+		USART2_Transmit((uint8_t*) suffix, strlen(suffix));
+
+		// je suis généreux
+		// je lache la main pour le suivant
+		task_yield();
 	}
 }
 
 int main(void)
 {
-	// j'initialise toutes mes taches
+	// j'initialise tous mes périphériques et broches
+	// avant de lancer mes taches
 	blink_init();
 	button_init();
 	usart_init();
 
 	// je met mes fonctions dans un tableau pour écrire le round robin plus facilement
 	functions[0] = blink_loop;
+#if !UNE_SEULE_TACHE
 	functions[1] = button_loop;
 	functions[2] = usart_loop;
+#endif
 
+#if UNE_SEULE_TACHE
+	task_init(task[0], &(tasks[0].tcb), functions[0])
+#else
 	// j'initiaise toutes les structures tache
 	for(uint8_t i = 0; i < 3; ++i) {
 		task_init(&(tasks[i]), &(tasks[(i+1)%3].tcb), functions[i]);
 	}
+#endif
 
 	// je prend le premier tcb pour le current tcb
 	current_tcb = &(tasks[0].tcb);
-
-	// Si vous voulez tester avec une seule tache
-//	tasks[0].tcb.next = &(tasks[0].tcb);
 
 	// On met les priorité et on active pendingSV
 	NVIC_SetPriority (PendSV_IRQn, 15);
