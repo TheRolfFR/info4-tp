@@ -87,24 +87,33 @@ void task_init(volatile Task_t *t, volatile TCB* next, volatile void* fun) {
 
 void task_yield() {
 #if YIELD_CRITIQUE
+	// pour faire un appel système on génère une exception SVC
+	// gérée dans SVC_Handler qui lance SVC_C si le numéro est différent de 0
 	SVC(TASK_YIELD);
 #endif
 }
 
 #if YIELD_CRITIQUE
+/**
+ * @brief Critical nesting variable
+ */
 uint32_t critical = 0;
 #endif
 void enter_critical() {
 #if YIELD_CRITIQUE
+	// on désactive le scheduler, les interruptions et le nesting de critical
 	scheduler = 0;
 	__disable_irq();
+
 	++critical;
 #endif
 }
 
 void exit_critical() {
 #if YIELD_CRITIQUE
-	if(--critical == 0) {
+	// si on a plus de nesting, on réactive tout
+	critical = (critical > 0) ? critical - 1 : 0;
+	if(critical == 0) {
 		__enable_irq();
 		scheduler = 1;
 	}
@@ -115,7 +124,7 @@ void blink_init() {
 	// on active le GPIOA
 	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
 
-	// PA5 sortie : MODER = 01
+	// PA5 sortie : MODERX = 01
 	GPIO_LED->MODER &= ~(0b11 << (GPIO_PIN_LED * 2));
 	GPIO_LED->MODER |= (0b1 << (GPIO_PIN_LED * 2));
 }
@@ -144,11 +153,11 @@ void blink_loop() {
 
 // Fonction d'initialisation de bouton
 void button_init() {
+	// on active le GPIOC
 	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOCEN;
 
-	// PC13 entrée
-	GPIO_TypeDef* gpioc = GPIO_BOUTON;
-	gpioc->MODER &= ~(0b11 << (GPIO_PIN_BOUTON * 2)); // in : 00
+	// PC13 entrée : MODERX = 00
+	GPIO_BOUTON->MODER &= ~(0b11 << (GPIO_PIN_BOUTON * 2));
 }
 
 // Tache du bouton
