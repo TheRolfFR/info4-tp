@@ -23,8 +23,7 @@
 /* Private macro -------------------------------------------------------------*/
 
 /* Private variables ---------------------------------------------------------*/
-volatile SemaphoreHandle_t my_mutex;
-volatile SemaphoreHandle_t my_binary_semaphore;
+volatile SemaphoreHandle_t semaphoreBinairePulse;
 
 /* Private function prototypes -----------------------------------------------*/
 void pin_init(void);
@@ -42,6 +41,7 @@ void T2( void * pvParameters );
 int main(void)
 {
 	BaseType_t xReturned0;
+	(void) xReturned0;
 	TaskHandle_t xHandle0 = 0;
 
 	/*priority grouping 4 bits for preempt priority 0 bits for subpriority
@@ -51,8 +51,6 @@ int main(void)
 	/*
 	 * Peripheral init
 	 */
-	/* pin (GPIO) */
-	pin_init();
 	/* USART2 */
 	USART2_Init(115200);
 
@@ -70,39 +68,10 @@ int main(void)
                     tskIDLE_PRIORITY+7,/* Priority at which the task is created. */
                     &xHandle0 );      /* Used to pass out the created task's handle. */
 
-    BaseType_t helloReturnTasks[2];
-    TaskHandle_t handleHelloTasks[2] = {0};
-    char name[30] = {0};
-    char number[2] = {0};
-    for(uint8_t i = 0; i < 2; ++i) {
-    	strcpy(name, "Hello task ");
-    	number[0] = '0' + i;
-    	strcat(name, number);
+    // On crée notre sémaphore
+    semaphoreBinairePulse = xSemaphoreCreateBinary();
 
-    	// on a créé notre première tache pour allumer la led
-    	helloReturnTasks[i] = xTaskCreate(
-                        T2,       /* Function that implements the task. */
-                        name,          /* Text name for the task. */
-                        STACK_SIZE,      /* Stack size in words, not bytes. */
-                        ( void * ) 2+i,    /* Parameter passed into the task. */
-                        tskIDLE_PRIORITY+6,/* Priority at which the task is created. */
-                        &(handleHelloTasks[i]) ); // manage task with handle
-    }
-
-    if( xReturned0 == pdPASS && helloReturnTasks[0] == pdPASS && helloReturnTasks[1] == pdPASS){
-        /* The task was created.  The task's handle can be used
-         * to delete the task. : vTaskDelete( xHandle ); */
-    }else{
-    	// not enough memory to create task
-    	//printf(" not enough memory to create task T0 \n");
-    }
-
-    // create mutex
-    my_mutex = xSemaphoreCreateMutex();
-    my_binary_semaphore = xSemaphoreCreateBinary();
-    xSemaphoreGive(my_binary_semaphore);
-
-    printf("start of scheduler \n");
+    printf("Démarrage du scheduler \n");
     // start the scheduler, tasks will be started and the
     // function will not return
 	vTaskStartScheduler();
@@ -112,116 +81,154 @@ int main(void)
 	for(;;);
 }
 
+void configCapture() {
+	// le USER BUTTON est en pull up
+	// donc quand pressé fait haut->bas->haut
+
+    // activer gpio B
+    RCC->AHB1ENR |= RCC_AHB1ENR_GPIOBEN;
+
+    // PB7 alternate function (2) : AF02 TIM4 channel 2 (2)
+	GPIOB->MODER &= ~GPIO_MODER_MODER7_Msk;
+	GPIOB->MODER |= GPIO_MODER_MODER7_1;
+	GPIOB->AFR[0] &= ~GPIO_AFRH_AFRH7; // 0
+	GPIOB->AFR[0] |=  GPIO_AFRH_AFRH7_1; // 2
+
+    // activer timer 4
+	RCC->APB1ENR |= RCC_APB1ENR_TIM4EN;
+
+	// Mettre la vitesse du Timer 4
+	// TIM4  bits: max(ARR) = 2^16 - 1
+	TIM4->PSC = 0; // prescaler to 1
+	TIM4->ARR = 0xFFFF;
+
+	// activer les modifications CCMR2
+	TIM4->CCER &= ~TIM_CCER_CC1E;
+	TIM4->CCER &= ~TIM_CCER_CC2E;
+
+	// Mettre filtre IC2 : 0b10
+	TIM4->CCMR1 &= ~TIM_CCMR1_IC2F_Msk;
+	TIM4->CCMR1 |= 0b0010 << TIM_CCMR1_IC2F_Pos; // N=4 pour downcounter
+
+	// Mettre le prescaler d'évènement : détecter un changement sur chaque front
+	// capture is done each time an edge is detected on the capture input
+	TIM4->CCMR1 &= ~TIM_CCMR1_IC1PSC;
+	TIM4->CCMR1 &= ~TIM_CCMR1_IC2PSC;
+
+	// rediriger CC1 channel vers TI2 (valeur 2)
+	TIM4->CCMR1 &= ~TIM_CCMR1_CC1S_Msk;
+	TIM4->CCMR1 |= 2 << TIM_CCMR1_CC1S_Pos;
+
+	// rediriger CC2 channel vers TI2 (valeur 1)
+	TIM4->CCMR1 &= ~TIM_CCMR1_CC2S_Msk;
+	TIM4->CCMR1 |= 1 << TIM_CCMR1_CC2S_Pos;
+
+	// mettre la détection de front
+	TIM4->CCER &= ~(TIM_CCER_CC1NP_Msk | TIM_CCER_CC1P_Msk);
+	TIM4->CCER &= ~(TIM_CCER_CC2NP_Msk | TIM_CCER_CC2P_Msk);
+
+	// front montant, signal TI2FP1, qui sera lui aiguillé sur le signal IC1 : noninverted/riging edge : (0/0) CCR1
+	// front descendant, signal TI2FP2, qui sera aiguillé sur le signal IC2 : inverted/falling edge : (0/1) CCR2
+	TIM4->CCER |= TIM_CCER_CC2P;
+
+	// activer la capture CC1 et CC2
+	TIM4->CCER |= TIM_CCER_CC1E;
+	TIM4->CCER |= TIM_CCER_CC2E;
+
+	// activer le compteur 1
+	TIM4->CR1 |= TIM_CR1_CEN;
+
+	// trigger force 0
+    TIM4->EGR |= TIM_EGR_UG;
+
+    // activer les interruptions pour le timer 4
+	NVIC_SetPriority(TIM4_IRQn, 6);
+	NVIC_EnableIRQ(TIM4_IRQn);
+
+	// activer les interruptions pour le overflow, le cc1 et cc2 plus tard
+	TIM4->DIER |= TIM_DIER_CC2IE | TIM_DIER_UIE | TIM_DIER_CC1IE;
+}
+
+uint32_t overflow = 0;
+uint16_t ccr1, ccr2;
+
+/**
+ * @brief Fonction bloquante qui donne la durée de la pulse
+ * @param[out] diff_ms Pointeur où envoyer la valeur de la différence en ms
+ * @param[out] ovr_ms Pointeur où envoyer la valeur de la différence en overflow en ms
+ */
+void get_pulse(uint32_t *diff_ms, uint32_t *ovr_ms) {
+
+	xSemaphoreTake(semaphoreBinairePulse, portMAX_DELAY);
+
+	uint32_t timespan;
+	if(ccr1 > ccr2) {
+		timespan = ccr1 - ccr2;
+	} else {
+		overflow--;
+		timespan = (ccr1 + TIM4->ARR + 1) - ccr2;
+	}
+
+	// pour faire court, un overflow dure (ARR+1) / (SystemCoreClock / (PSC + 1)) secondes (car on est en Hertz)
+
+	// ne pas changer le calcul optimisé
+	*ovr_ms = overflow * (TIM4->ARR + 1) / (SystemCoreClock / (TIM4->PSC + 1) / 1000);
+	*diff_ms = timespan / (SystemCoreClock / (TIM4->PSC + 1) / 1000);
+}
+
+void TIM4_IRQHandler() {
+
+	if((TIM4->DIER & TIM_DIER_UIE) && (TIM4->SR & TIM_SR_UIF)) {
+		++overflow;
+
+		TIM4->SR &= ~TIM_SR_UIF;
+	}
+
+	if((TIM4->DIER & TIM_DIER_CC2IE) && (TIM4->SR & TIM_SR_CC1IF))  {
+		// CCR1 est montant donc fin
+		ccr1 = TIM4->CCR1;
+
+		// activer les interruptions pour overflow and rising
+		BaseType_t tacheDebloquee; // mise à pdTrue si tache plus prioritaire débloquée
+		xSemaphoreGiveFromISR(semaphoreBinairePulse, &tacheDebloquee);
+
+		// clear CC1IF interrupt flag
+		TIM4->SR &= ~TIM_SR_CC1IF;
+
+		portYIELD_FROM_ISR(tacheDebloquee);
+	}
+
+	if((TIM4->DIER & TIM_DIER_CC1IE) && (TIM4->SR & TIM_SR_CC2IF)) {
+		// CC2IF est descendant donc début
+
+		// restart the overflow counter
+		overflow = 0;
+
+		// get the ccr2 value
+		ccr2 = TIM4->CCR2;
+
+
+		// clear CC1IF interrupt flag
+		TIM4->SR &= ~TIM_SR_CC2IF;
+	}
+}
+
 /**
  * @brief	Task TO
  * @param	parameters given @ creation
  * @retval	none (should not return)
  */
-void T0( void * pvParameters )
-{
-	TickType_t tick = xTaskGetTickCount();
-	// ininite loop :
-	for( ;; ){
-		// allumer led
-		uint8_t state = !(GPIOA->ODR & GPIO_ODR_OD5_Msk);
-		GPIOA->ODR &= ~(GPIOA->ODR & GPIO_ODR_OD5_Msk);
-		GPIOA->ODR |= state << GPIO_ODR_OD5_Pos;
+void T0( void * pvParameters ) {
+	configCapture();
 
-		if(state) {
-			USART2_Transmit((uint8_t*) "jour\r\n", sizeof("jour\r\n"));
-		} else {
-			USART2_Transmit((uint8_t*) "nuit\r\n", sizeof("nuit\r\n"));
-		}
+	uint32_t diff_ms, overflow_ms;
 
-		vTaskDelayUntil(&tick, configTICK_RATE_HZ/2);
+	for(;;) {
+		get_pulse(&diff_ms, &overflow_ms);
+		(void) diff_ms;
+		(void) overflow_ms;
+		__NOP();
 	}
-}
-
-/**
- * @brief	Task T2
- * @param	Integer with task index
- * @retval	none (should not return)
- */
-void T2( void * pvParameters )
-{
-	// on transforme notre entier en string
-	char number[11] = {0};
-	snprintf(number, 10, "%lu", (uint32_t) pvParameters);
-
-	// on crée notre buffer
-	char helloSentence[30] = "Hello from task ";
-
-	// on ajoute notre nombre a la phrase
-	strcat(helloSentence, number);
-
-	// on ajoute un retour a la ligne
-	strcat(helloSentence, "\r\n");
-
-	// ininite loop :
-	for( ;; ){
-		// Afficher message polling
-		// Attente max pour être sur de l'obtenir
-		BaseType_t semTaken = xSemaphoreTake(my_binary_semaphore, portMAX_DELAY);
-		if(semTaken == pdTRUE) {
-			USART2_Transmit((uint8_t*) helloSentence, strlen(helloSentence));
-			xSemaphoreGive(my_binary_semaphore);
-		}
-	}
-}
-
-
-/**
- * @brief	pin configuration for application
- * @param	none
- * @retval	none
- */
-void pin_init(void)
-{
-	GPIO_TypeDef * PA = GPIOA, *PB = GPIOB;
-
-	/* Pin configuration
-	 *
-	 */
-	/****************************** PINS PA5  *********************************/
-	/* Enable GPIOA and clock */
-	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
-	/* PA5 driven by alternate function : */
-	/* select the alternate function first for PIN5  */
-	PA->AFR[0] &= ~ (0xF << 20)	;
-	PA->AFR[0] |= (0x1 << 20)	;	/* AF01 */
-	/* clear MODER for PIN 5 */
-	PA->MODER &= ~GPIO_MODER_MODER5;
-#ifdef USE_PA5_PWM
-	PA->MODER |= GPIO_MODER_MODER5_1; /* alternate function */
-	/***************************** PINS PA5 ***********************************/
-#else
-	PA->MODER |= GPIO_MODER_MODER5_0; /* GPIO output */
-#endif
-
-	/******************* PINS PA2 and PA3 for USART2 **************************/
-	/* PA2 et 3 in alternate function N°7 */
-	PA->AFR[0] &= ~(0xF << (2*4) );	/* clear the 4 bits */
-	PA->AFR[0] |= (7 << (2*4) ); 	/* set alternate function Nbr 7*/
-	/* RX on PA3 alternate function 7 */
-	PA->AFR[0] &= ~(0xF << (3*4) );	/* clear the 4 bits */
-	PA->AFR[0] |= (7 << (3*4) );		/* set alternate function Nbr 7*/
-	/* Configure alternate function for UART2 RX (PIN3) and TX (PIN2) */
-	PA->MODER &= ~(3 << (2 * 2) );	/*TX*/
-	PA->MODER &= ~(3 << (3 * 2) );	/*RX*/
-	PA->MODER |= (2 << (2 * 2) );	/*TX*/
-	PA->MODER |= (2 << (3 * 2) );	/*RX*/
-	/************************** PINS PA2 and PA3 ******************************/
-
-	/************************** PINS PB7 for TIM4 CH2 *************************/
-	/* Enable GPIOB and clock */
-	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOBEN;
-	/* PB7 as alternate function N°2*/
-	PB->AFR[0] &= ~ GPIO_AFRL_AFSEL7_Msk	;
-	PB->AFR[0] |= (0x2 << GPIO_AFRL_AFSEL7_Pos)	;	/* AF02 */
-	PB->MODER &= ~GPIO_MODER_MODER7;
-	PB->MODER |= GPIO_MODER_MODER7_1; /* alternate function */
-	/************************** PINS PB7 for TIM4 CH2 *************************/
-
 }
 
 //#ifdef  USE_FULL_ASSERT
