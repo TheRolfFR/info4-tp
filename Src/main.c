@@ -16,6 +16,11 @@
 #include <string.h>
 
 /* Private typedef -----------------------------------------------------------*/
+typedef struct _pulse {
+	uint32_t ccr1;
+	uint32_t ccr2;
+	uint32_t overflow;
+} Pulse;
 
 /* Private define ------------------------------------------------------------*/
 #define STACK_SIZE	512 // in words (= 4*STACK_SIZE bytes)
@@ -24,6 +29,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 volatile SemaphoreHandle_t semaphoreBinairePulse;
+volatile QueueHandle_t queuePulses = NULL;
 
 /* Private function prototypes -----------------------------------------------*/
 void pin_init(void);
@@ -43,6 +49,9 @@ int main(void)
 	BaseType_t xReturned0;
 	(void) xReturned0;
 	TaskHandle_t xHandle0 = 0;
+	BaseType_t xReturned1;
+	(void) xReturned1;
+	TaskHandle_t xHandle1;
 
 	/*priority grouping 4 bits for preempt priority 0 bits for subpriority
 	 * (No Subpriority) for FreeRTOS*/
@@ -68,8 +77,20 @@ int main(void)
                     tskIDLE_PRIORITY+7,/* Priority at which the task is created. */
                     &xHandle0 );      /* Used to pass out the created task's handle. */
 
+    xReturned1 = xTaskCreate(
+                    T1,       /* Function that implements the task. */
+                    "Envoyer 3 impulsions",          /* Text name for the task. */
+                    STACK_SIZE,      /* Stack size in words, not bytes. */
+                    ( void * ) 0,    /* Parameter passed into the task. */
+                    tskIDLE_PRIORITY+7,/* Priority at which the task is created. */
+                    &xHandle1 );      /* Used to pass out the created task's handle. */
+
     // On crée notre sémaphore
     semaphoreBinairePulse = xSemaphoreCreateBinary();
+    queuePulses = xQueueCreate(3, sizeof(Pulse));
+
+    if(xReturned0 != pdPASS || xReturned1 != pdPASS || queuePulses == NULL)
+    	while(1);
 
     printf("Démarrage du scheduler \n");
     // start the scheduler, tasks will be started and the
@@ -147,10 +168,17 @@ void configCapture() {
 
 	// activer les interruptions pour le overflow, le cc1 et cc2 plus tard
 	TIM4->DIER |= TIM_DIER_CC2IE | TIM_DIER_UIE | TIM_DIER_CC1IE;
+
+	// configurer PC13 en mode sortie, open drain sans resistance de rappel
+	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOCEN;
+
+	GPIOC->MODER &= ~GPIO_MODER_MODE13_Msk;
+	GPIOC->MODER |= GPIO_MODER_MODER13_0; // output (01)
+	GPIOC->OTYPER |= GPIO_OTYPER_OT13; // open drain (1)
+	GPIOC->PUPDR &= ~GPIO_PUPDR_PUPD13_Msk; // sans résistance de rappel (00)
 }
 
-uint32_t overflow = 0;
-uint16_t ccr1, ccr2;
+Pulse pulse;
 
 /**
  * @brief Fonction bloquante qui donne la durée de la pulse
@@ -159,53 +187,55 @@ uint16_t ccr1, ccr2;
  */
 void get_pulse(uint32_t *diff_ms, uint32_t *ovr_ms) {
 
-	xSemaphoreTake(semaphoreBinairePulse, portMAX_DELAY);
+	// xSemaphoreTake(semaphoreBinairePulse, portMAX_DELAY);
+	Pulse p;
+	xQueueReceive(queuePulses, &p, portMAX_DELAY);
 
 	uint32_t timespan;
-	if(ccr1 > ccr2) {
-		timespan = ccr1 - ccr2;
+	if(p.ccr1 > p.ccr2) {
+		timespan = p.ccr1 - p.ccr2;
 	} else {
-		overflow--;
-		timespan = (ccr1 + TIM4->ARR + 1) - ccr2;
+		p.overflow--;
+		timespan = (p.ccr1 + TIM4->ARR + 1) - p.ccr2;
 	}
 
 	// pour faire court, un overflow dure (ARR+1) / (SystemCoreClock / (PSC + 1)) secondes (car on est en Hertz)
 
 	// ne pas changer le calcul optimisé
-	*ovr_ms = overflow * (TIM4->ARR + 1) / (SystemCoreClock / (TIM4->PSC + 1) / 1000);
+	*ovr_ms = p.overflow * (TIM4->ARR + 1) / (SystemCoreClock / (TIM4->PSC + 1) / 1000);
 	*diff_ms = timespan / (SystemCoreClock / (TIM4->PSC + 1) / 1000);
 }
 
 void TIM4_IRQHandler() {
 
 	if((TIM4->DIER & TIM_DIER_UIE) && (TIM4->SR & TIM_SR_UIF)) {
-		++overflow;
+		++pulse.overflow;
 
 		TIM4->SR &= ~TIM_SR_UIF;
 	}
 
 	if((TIM4->DIER & TIM_DIER_CC2IE) && (TIM4->SR & TIM_SR_CC1IF))  {
 		// CCR1 est montant donc fin
-		ccr1 = TIM4->CCR1;
+		pulse.ccr1 = TIM4->CCR1;
 
 		// activer les interruptions pour overflow and rising
 		BaseType_t tacheDebloquee; // mise à pdTrue si tache plus prioritaire débloquée
-		xSemaphoreGiveFromISR(semaphoreBinairePulse, &tacheDebloquee);
+		(void) tacheDebloquee;
+//		xSemaphoreGiveFromISR(semaphoreBinairePulse, &tacheDebloquee);
+		xQueueSendToBackFromISR(queuePulses, &pulse, 0);
 
 		// clear CC1IF interrupt flag
 		TIM4->SR &= ~TIM_SR_CC1IF;
-
-		portYIELD_FROM_ISR(tacheDebloquee);
 	}
 
 	if((TIM4->DIER & TIM_DIER_CC1IE) && (TIM4->SR & TIM_SR_CC2IF)) {
 		// CC2IF est descendant donc début
 
 		// restart the overflow counter
-		overflow = 0;
+		pulse.overflow = 0;
 
 		// get the ccr2 value
-		ccr2 = TIM4->CCR2;
+		pulse.ccr2 = TIM4->CCR2;
 
 
 		// clear CC1IF interrupt flag
@@ -223,11 +253,38 @@ void T0( void * pvParameters ) {
 
 	uint32_t diff_ms, overflow_ms;
 
+	uint8_t buffer[20];
+
 	for(;;) {
 		get_pulse(&diff_ms, &overflow_ms);
 		(void) diff_ms;
 		(void) overflow_ms;
-		__NOP();
+
+		int2string((int) overflow_ms, (char*) buffer);
+		strcat((char*) buffer, "\r\n");
+		USART2_Transmit(buffer, strlen((char*) buffer));
+
+		int2string((int) diff_ms, (char*) buffer);
+		strcat((char*) buffer, "\r\n");
+		USART2_Transmit(buffer, strlen((char*) buffer));
+	}
+}
+
+/**
+ * @brief Tache où j'envoie 3 impulsions aléatoires
+ */
+void T1( void * pvParameters ) {
+	TickType_t tick = xTaskGetTickCount();
+
+	for(;;) {
+		USART2_Transmit((uint8_t*) "salve\r\n", strlen("salve\r\n"));
+		for(uint8_t i = 0; i < 3; ++i) {
+			GPIOC->ODR &= ~GPIO_ODR_OD13; // on
+			vTaskDelay(2000 + xTaskGetTickCount() % 5000);
+			GPIOC->ODR |= GPIO_ODR_OD13; // on
+			vTaskDelay(configTICK_RATE_HZ/1000);
+		}
+		vTaskDelayUntil(&tick, configTICK_RATE_HZ * 3); // 3s entre chaque salve
 	}
 }
 

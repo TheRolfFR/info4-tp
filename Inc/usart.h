@@ -34,5 +34,8 @@ int32_t USART2_receive_not_busy(void);
 // to reset the receive complete flag
 void USART2_receive_complete_clear(void);
 
+// convert int into string
+char * int2string(signed int num, char* string);
+
 #endif /* __USART_H */
 

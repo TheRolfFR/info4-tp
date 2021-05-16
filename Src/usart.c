@@ -8,6 +8,21 @@
   * */
 void USART2_Init(uint32_t baud)
 {
+	GPIO_TypeDef * PA = GPIOA;
+	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
+	/******************* PINS PA2 and PA3 for USART2 **************************/
+	/* PA2 et 3 in alternate function N°7 */
+	PA->AFR[0] &= ~(0xF << (2*4) );	/* clear the 4 bits */
+	PA->AFR[0] |= (7 << (2*4) ); 	/* set alternate function Nbr 7*/
+	/* RX on PA3 alternate function 7 */
+	PA->AFR[0] &= ~(0xF << (3*4) );	/* clear the 4 bits */
+	PA->AFR[0] |= (7 << (3*4) );		/* set alternate function Nbr 7*/
+	/* Configure alternate function for UART2 RX (PIN3) and TX (PIN2) */
+	PA->MODER &= ~(3 << (2 * 2) );	/*TX*/
+	PA->MODER &= ~(3 << (3 * 2) );	/*RX*/
+	PA->MODER |= (2 << (2 * 2) );	/*TX*/
+	PA->MODER |= (2 << (3 * 2) );	/*RX*/
+
 uint32_t tmp = 0,  divmantissa, divfraction, apbclk;
 
 	/* initialisation de l'USART2 : baud,8,1,n */
@@ -452,4 +467,44 @@ void USART2_IRQHandler(void)
 		// clear the reception busy flag
 		usart2_dev.state &= ~RX_BUSY;
 	}
+}
+
+// convert int into string
+char * int2string(signed int num, char* string)
+{
+    if(num == 0) {
+    	string[0] = '0';
+    	string[1] = '\0';
+    	return string;
+    }
+
+	 unsigned int sign = 0;
+
+     if(num<0) { // Traitement du signe
+         sign=1;
+         num *= -1;
+     }
+
+     unsigned cnt = 0;
+     while(num>0) {
+
+    	 string[cnt]=(num%10) + '0'; // Conversion
+
+		 num /= 10;
+         cnt++;
+     }
+
+     if(sign==1) {
+    	 string[cnt]=0x2D; // '-'
+         cnt++;
+     }
+
+     char c;
+     for(int i = 0; i<(int)(cnt/2);i++) { // inverse le nombre
+         c=string[i];
+         string[i]=string[cnt-i-1];
+         string[cnt-i-1]=c;
+     }
+     string[cnt]='\0'; // met un terme à la chaine de caracteres
+     return string;
 }
