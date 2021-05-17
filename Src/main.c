@@ -214,7 +214,7 @@ void TIM4_IRQHandler() {
 		TIM4->SR &= ~TIM_SR_UIF;
 	}
 
-	if((TIM4->DIER & TIM_DIER_CC2IE) && (TIM4->SR & TIM_SR_CC1IF))  {
+	if((TIM4->DIER & TIM_DIER_CC1IE) && (TIM4->SR & TIM_SR_CC1IF))  {
 		// CCR1 est montant donc fin
 		pulse.ccr1 = TIM4->CCR1;
 
@@ -228,7 +228,7 @@ void TIM4_IRQHandler() {
 		TIM4->SR &= ~TIM_SR_CC1IF;
 	}
 
-	if((TIM4->DIER & TIM_DIER_CC1IE) && (TIM4->SR & TIM_SR_CC2IF)) {
+	if((TIM4->DIER & TIM_DIER_CC2IE) && (TIM4->SR & TIM_SR_CC2IF)) {
 		// CC2IF est descendant donc début
 
 		// restart the overflow counter
