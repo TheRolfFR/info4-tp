@@ -45,6 +45,7 @@
 
 #define MCP_REG_WHOAMI 0x07
 #define MCP_REG_TEMP 0x05
+#define MCP_REG_RES 0x08
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -327,9 +328,10 @@ void tempTaskStart(void *argument)
 	// final value
 	float temp;
 	uint8_t UpperByte, LowerByte;
+	uint8_t registerToRead;
 
 	// WHOAMI
-	uint8_t registerToRead = MCP_REG_WHOAMI; // registre whoami
+	registerToRead = MCP_REG_WHOAMI; // registre whoami
 	uint8_t device_id_and_rev[2]; // destination
 
 	// lecture du registre de deux octets
@@ -344,6 +346,16 @@ void tempTaskStart(void *argument)
 		snprintf(tmp_buffer, TMP_BUFFER_LENGTH, "Incorrect device ID %d\r\n", (int) device_id_and_rev[0]);
 		HAL_UART_Transmit(&huart2, (uint8_t*) tmp_buffer, strlen(tmp_buffer), configTICK_RATE_HZ/2);
 	}
+
+	// changement de la resolution
+	registerToRead = MCP_REG_RES;
+	// ------XX
+	// 00 : +0.5°C (tconv = 30ms)
+	// 01 : +0.25°C (tconv = 65ms)
+	// 10 : +0.125°C (tconv = 130ms)
+	// 11 : +0.0625°C (tconv = 250ms) (valeur par défaut power-up)
+	uint8_t reg_and_res[2] = { MCP_REG_RES, 0b11 }; // resolution max
+	HAL_I2C_Master_Transmit(&hi2c1, MCP_ADDRESS_WRITE, reg_and_res, 2, configTICK_RATE_HZ/2);
 
 	/* Infinite loop */
 	uint8_t temp_response[2];
@@ -372,7 +384,7 @@ void tempTaskStart(void *argument)
 
 		HAL_UART_Transmit(&huart2, (uint8_t*) tmp_buffer, strlen(tmp_buffer), configTICK_RATE_HZ/2);
 
-		osDelay(configTICK_RATE_HZ/4); // attends 250ms
+		osDelay(configTICK_RATE_HZ/4); // attends Tconv=250ms
 	}
   /* USER CODE END 5 */
 }
