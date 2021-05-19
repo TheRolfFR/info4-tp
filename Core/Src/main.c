@@ -26,6 +26,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <queue.h>
+#include <semphr.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -68,6 +69,7 @@ const osThreadAttr_t tempTask_attributes = {
 /* USER CODE BEGIN PV */
 volatile QueueHandle_t queueTemp = NULL;
 char tmp_buffer[TMP_BUFFER_LENGTH];
+SemaphoreHandle_t temp_semaphore;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -311,7 +313,28 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void HAL_I2C_MasterTxCpltCallback(I2C_HandleTypeDef *hi2c) {
+	if(hi2c->Instance == I2C1) {
+		if(hi2c->Devaddress == MCP_ADDRESS_WRITE) {
+			BaseType_t morePriorTask;
+			xSemaphoreGiveFromISR(temp_semaphore, &morePriorTask);
 
+			portYIELD_FROM_ISR(morePriorTask);
+		}
+	}
+}
+
+void HAL_I2C_MasterRxCpltCallback (I2C_HandleTypeDef * hi2c)
+{
+	if(hi2c->Instance == I2C1) {
+		if(hi2c->Devaddress == MCP_ADDRESS_READ) {
+			BaseType_t morePriorTask;
+			xSemaphoreGiveFromISR(temp_semaphore, &morePriorTask);
+
+			portYIELD_FROM_ISR(morePriorTask);
+		}
+	}
+}
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_tempTaskStart */
@@ -325,6 +348,9 @@ void tempTaskStart(void *argument)
 {
   /* USER CODE BEGIN 5 */
 
+	// create sem
+	temp_semaphore = xSemaphoreCreateBinary();
+
 	// final value
 	float temp;
 	uint8_t UpperByte, LowerByte;
@@ -335,8 +361,10 @@ void tempTaskStart(void *argument)
 	uint8_t device_id_and_rev[2]; // destination
 
 	// lecture du registre de deux octets
-	HAL_I2C_Master_Transmit(&hi2c1, MCP_ADDRESS_WRITE, &registerToRead, 1, portMAX_DELAY);
-	HAL_I2C_Master_Receive(&hi2c1, MCP_ADDRESS_READ, device_id_and_rev, 2, portMAX_DELAY);
+	HAL_I2C_Master_Transmit_IT(&hi2c1, MCP_ADDRESS_WRITE, &registerToRead, 1);
+	xQueueSemaphoreTake(temp_semaphore, portMAX_DELAY);
+	HAL_I2C_Master_Receive_IT(&hi2c1, MCP_ADDRESS_READ, device_id_and_rev, 2);
+	xQueueSemaphoreTake(temp_semaphore, portMAX_DELAY);
 
 	// on vérifie bon id
 	if(device_id_and_rev[0] == 0x04) {
@@ -355,7 +383,8 @@ void tempTaskStart(void *argument)
 	// 10 : +0.125°C (tconv = 130ms)
 	// 11 : +0.0625°C (tconv = 250ms) (valeur par défaut power-up)
 	uint8_t reg_and_res[2] = { MCP_REG_RES, 0b11 }; // resolution max
-	HAL_I2C_Master_Transmit(&hi2c1, MCP_ADDRESS_WRITE, reg_and_res, 2, configTICK_RATE_HZ/2);
+	HAL_I2C_Master_Transmit_IT(&hi2c1, MCP_ADDRESS_WRITE, reg_and_res, 2);
+	xQueueSemaphoreTake(temp_semaphore, portMAX_DELAY);
 
 	/* Infinite loop */
 	uint8_t temp_response[2];
@@ -363,8 +392,10 @@ void tempTaskStart(void *argument)
 	for(;;)
 	{
 		// lecture regitre température 2 octets
-		HAL_I2C_Master_Transmit(&hi2c1, MCP_ADDRESS_WRITE, &registerToRead, 1, portMAX_DELAY);
-		HAL_I2C_Master_Receive(&hi2c1, MCP_ADDRESS_READ,temp_response, 2, portMAX_DELAY);
+		HAL_I2C_Master_Transmit_IT(&hi2c1, MCP_ADDRESS_WRITE, &registerToRead, 1);
+		xQueueSemaphoreTake(temp_semaphore, portMAX_DELAY);
+		HAL_I2C_Master_Receive_IT(&hi2c1, MCP_ADDRESS_READ,temp_response, 2);
+		xQueueSemaphoreTake(temp_semaphore, portMAX_DELAY);
 
 		// sépare upper et lower byte
 		UpperByte = temp_response[0];
@@ -380,7 +411,7 @@ void tempTaskStart(void *argument)
 			temp = UpperByte * 16.f + LowerByte / 16.f;
 		}
 
-		snprintf(tmp_buffer, TMP_BUFFER_LENGTH, "%f°C\r\n", temp);
+		snprintf(tmp_buffer, TMP_BUFFER_LENGTH, "\r%f°C ", temp);
 
 		HAL_UART_Transmit(&huart2, (uint8_t*) tmp_buffer, strlen(tmp_buffer), configTICK_RATE_HZ/2);
 
