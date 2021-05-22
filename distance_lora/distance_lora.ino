@@ -34,8 +34,11 @@ void setup() {
   rf95.init();
   rf95.setModemConfig(RH_RF95::Bw125Cr45Sf128);// Bandwidth=125kHz Code rate 4/5 Spreading factor =2^7  
   rf95.setFrequency(868.1); // 868.1, 868.2 or 868.3
-      
-  gr_gt = gains(1, -5.0, POWER_TRANSMITTER);
+
+  // I need real values for an accurate gr_gt, but the professor didn't gave it to us
+  // to calibrate gr_gt, I need to enter a known distance for a given power received
+  // I know the 
+  gr_gt = gains(1, -91.0, POWER_TRANSMITTER);
   
 }void loop() {
   if (rf95.waitAvailableTimeout(4000)) { // Wait for a packet for 4 seconds
@@ -47,6 +50,8 @@ void setup() {
       Serial.print(rssi, DEC);
       Serial.print(", distance=");
       dis = distance(gr_gt, (double) rssi, (double) POWER_TRANSMITTER);
+      Serial.print(dis);
+      Serial.println("m");
     }
   }  else Serial.println("No reception");
 }
