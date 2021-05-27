@@ -92,8 +92,9 @@ uint8_t CAN_envoi(CAN_frame CAN_mes) {
 				<< CAN_TI0R_STID_Pos) | CAN_mes.RTR << 1);
 	} else {
 		CAN1->sTxMailBox[transmitmailbox].TIR = ((CAN_mes.ExtId
-				<< CAN_TI0R_EXID_Pos) | CAN_mes.IDE | CAN_mes.RTR);
+				<< CAN_TI0R_EXID_Pos) | CAN_mes.IDE | CAN_mes.RTR << 1);
 	}
+
 	/* Set up the DLC */
 	CAN1->sTxMailBox[transmitmailbox].TDTR = (CAN_mes.DLC);
 	/* Set up the data field */

@@ -1,39 +1,46 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  * @attention
-  *
-  * <h2><center>&copy; Copyright (c) 2021 STMicroelectronics.
-  * All rights reserved.</center></h2>
-  *
-  * This software component is licensed by ST under BSD 3-Clause license,
-  * the "License"; You may not use this file except in compliance with the
-  * License. You may obtain a copy of the License at:
-  *                        opensource.org/licenses/BSD-3-Clause
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * @file           : main.c
+ * @brief          : Main program body
+ ******************************************************************************
+ * @attention
+ *
+ * <h2><center>&copy; Copyright (c) 2021 STMicroelectronics.
+ * All rights reserved.</center></h2>
+ *
+ * This software component is licensed by ST under Ultimate Liberty license
+ * SLA0044, the "License"; You may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at:
+ *                             www.st.com/SLA0044
+ *
+ ******************************************************************************
+ */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include <string.h>
-#include "usart2.h"
-#include "spi.h"
-#include "acc.h"
-#include "rtc.h"
-#include "UART_LIN.h"
 #include "can.h"
+#include "usart2.h"
+#include "COM_LIN.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+typedef enum {
+	CLIGNO_DROITE = 1,
+	CLIGNO_REPOS = CLIGNO_DROITE * 2,
+	CLIGNO_GAUCHE = CLIGNO_REPOS * 2,
+} ClignoEtat;
 
+typedef enum {
+	FEUX_0 = CLIGNO_GAUCHE * 2,
+	FEUX_AUTO = FEUX_0 * 2,
+	FEUX_VEILLEUSES = FEUX_AUTO * 2,
+	FEUX_ROUTE = FEUX_VEILLEUSES * 2
+} FeuxEtat;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -42,324 +49,227 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
+#define ETAT_METTRE_BIT(variable, condition, value) do { if(condition) { variable |= value; } else { variable &= (~value); } } while(0)
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-CAN_HandleTypeDef hcan1;
-
-UART_HandleTypeDef huart2;
-UART_HandleTypeDef huart3;
 
 /* USER CODE BEGIN PV */
-LINMSG helloMsg;
+int data = 0;
+uint8_t etat_commodo = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_CAN1_Init(void);
-static void MX_USART2_UART_Init(void);
-static void MX_USART3_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
-/* USER CODE END PFP 	*/
+/* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-void EXTI0_IRQHandler(void) {
-	// send request for RTC
-	SendRequest('R');
 
-	// SendMessage(&helloMsg);
-
-	EXTI->PR = EXTI_PR_PR0;
-}
-
-/**--- Byte-per-byte reception ---**/
-void reception_handler(uint8_t pid) {
-	if(pid == 'H') {
-		// Message "Hello!" (6 caractères) du maitre
-		uint8_t buffer[7] = {0};
-		for(uint8_t t = 0; t < 6; t++) {
-			buffer[t] = UART_GetChar();
-		}
-
-		(void) buffer;
+void process_frame(CAN_frame frame) {
+	// ID déjà filtré
+	// on va voir la DLC, le premier voire second bite
+	if(frame.DLC >= 1) {
+		// clignotants
+		ETAT_METTRE_BIT(etat_commodo, frame.Data[0] & 0x4, CLIGNO_DROITE);
+		ETAT_METTRE_BIT(etat_commodo, frame.Data[0] & 0x8, CLIGNO_REPOS);
+		ETAT_METTRE_BIT(etat_commodo, frame.Data[0] & 0x10, CLIGNO_GAUCHE);
 	}
-	else if(pid == 0xAC) {
-		// Requête de la part du maitre pour l'accéméromètre
-		coord accData = ACC_get_coord();
 
-		LINMSG accRep = {
-				.length = sizeof(coord) // 3*uint16_t = 3*2 = 6 < 10
-		};
-		memcpy(accRep.data, &accData, sizeof(coord));
-
-		SendResponse(&accRep);
-	}
-	else if(pid == 'R') {
-		// recevoir la réponse de la RTC avec 3 octets
-		// H:M:S
-
-		LINMSG msg;
-		msg.ID = pid;
-		msg.length = 3;
-
-		for(uint8_t i = 0; i < msg.length; ++i) {
-			msg.data[i] = UART_GetChar();
-		}
-
-		// wait for checksum
-		uint8_t check_sum = UART_GetChar();
-
-		if(check_sum == checksum(msg.length, msg.data)) {
-			CAN_frame fr = {
-				.StdId = msg.ID & 0x7FF,
-				.IDE = 0,
-				.RTR = 0, // 0 : data frame
-				.DLC = msg.length
-			};
-
-			memcpy(fr.Data, msg.data, 6);
-			CAN_envoi(fr);
+	if (frame.DLC == 2) {
+		// feux
+		if((frame.Data[0] & 0x3) == 2) {
+			ETAT_METTRE_BIT(etat_commodo, frame.Data[1] == 2 || frame.Data[1] == 5, FEUX_0);
+			ETAT_METTRE_BIT(etat_commodo, frame.Data[1] == 3 || frame.Data[1] == 5, FEUX_AUTO);
+			ETAT_METTRE_BIT(etat_commodo, frame.Data[1] == 4 || frame.Data[1] == 9, FEUX_VEILLEUSES);
+			ETAT_METTRE_BIT(etat_commodo, frame.Data[1] == 0, FEUX_ROUTE);
 		}
 	}
+
+	// bref quoi qu'il arrive on renvoie l'etat_commodo par LIN
+	envoyer_etat_lin();
 }
 /* USER CODE END 0 */
 
 /**
-  * @brief  The application entry point.
-  * @retval int
-  */
-int main(void)
-{
-  /* USER CODE BEGIN 1 */
-	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOHEN; // HSE
+ * @brief  The application entry point.
+ * @retval int
+ */
+int main(void) {
+	/* USER CODE BEGIN 1 */
+
+	/* USER CODE END 1 */
+
+	/* MCU Configuration--------------------------------------------------------*/
+
+	/* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+	HAL_Init();
+
+	/* USER CODE BEGIN Init */
+	USART2_init_int(); // Init USART2 with 19200 bauds
+	/* USER CODE END Init */
+
+	/* Configure the system clock */
+	SystemClock_Config();
+
+	/* USER CODE BEGIN SysInit */
+
+	/* USER CODE END SysInit */
+
+	/* Initialize all configured peripherals */
+	MX_GPIO_Init();
+
+	/* USER CODE BEGIN 2 */
+
+	// contruct big id
+	uint32_t base = 0x10 << 24;
+	uint32_t receiver = 0x51 << 16; // numéro de l'esclave: 51 c'est clignotants
+	uint32_t emitter = 0x10 << 8; // numéro du poste
+	uint32_t fonction = 0;
+
+	uint32_t ext_id = base | receiver | emitter | fonction;
+	uint16_t CAN_FilterIdHigh = ((ext_id << 3) >> 16) & 0xffff;
+	uint16_t CAN_FilterIdLow = (uint16_t) (ext_id << 3) | CAN_ID_EXT;
+
+	// on filtre uniquement la base et le receveur
+	uint32_t ext_msk = 0xFFFF << 16;
+	uint16_t CAN_FilterMskHigh = ((ext_msk << 3) >> 16) & 0xffff;
+	uint16_t CAN_FilterMskLow = (uint16_t) (ext_msk << 3);
+
+	CAN_config(0, CAN_FilterIdHigh, CAN_FilterIdLow, CAN_FilterMskHigh, CAN_FilterMskLow);
+
+	UART_Init();
+	LIN_SetSlave();
+	LIN_SetReceiveCallback(callback_LIN);
+	/* USER CODE END 2 */
+	EXTI0_IRQHandler();
+	/* Infinite loop */
+	/* USER CODE BEGIN WHILE */
+	while (1) {
+		/* USER CODE END WHILE */
+
+		/* USER CODE BEGIN 3 */
+	}
+	/* USER CODE END 3 */
+}
+
+/**
+ * @brief This function handles CAN1 RX0 interrupts.
+ */
+void CAN1_RX0_IRQHandler(void) {
+	/* Light up LED and read CAN data*/
+
+	uint8_t RxFifo = 0;
+
+	/* Get header information into frame */
+	CAN_frame frame;
+
+	frame.IDE = CAN_ID_EXT; //(CAN_RI0R_IDE & CAN1->sFIFOMailBox[RxFifo].RIR);
+
+	if (frame.IDE == CAN_ID_STD)
+    {
+    	frame.StdId = (CAN_RI0R_STID & CAN1->sFIFOMailBox[RxFifo].RIR) >> CAN_TI0R_STID_Pos;
+    }
+    else
+    {
+    	frame.ExtId = ((CAN_RI0R_EXID | CAN_RI0R_STID) & CAN1->sFIFOMailBox[RxFifo].RIR) >> CAN_RI0R_EXID_Pos;
+    }
+	frame.RTR = (CAN_RI0R_RTR & CAN1->sFIFOMailBox[RxFifo].RIR) >> CAN_RI0R_RTR_Pos;
+	frame.DLC = (CAN_RDT0R_DLC & CAN1->sFIFOMailBox[RxFifo].RDTR) >> CAN_RDT0R_DLC_Pos;
+
+    /* Get the data */
+    frame.Data[0] = (uint8_t)((CAN_RDL0R_DATA0 & CAN1->sFIFOMailBox[RxFifo].RDLR) >> CAN_RDL0R_DATA0_Pos);
+    frame.Data[1] = (uint8_t)((CAN_RDL0R_DATA1 & CAN1->sFIFOMailBox[RxFifo].RDLR) >> CAN_RDL0R_DATA1_Pos);
+    frame.Data[2] = (uint8_t)((CAN_RDL0R_DATA2 & CAN1->sFIFOMailBox[RxFifo].RDLR) >> CAN_RDL0R_DATA2_Pos);
+    frame.Data[3] = (uint8_t)((CAN_RDL0R_DATA3 & CAN1->sFIFOMailBox[RxFifo].RDLR) >> CAN_RDL0R_DATA3_Pos);
+    frame.Data[4] = (uint8_t)((CAN_RDH0R_DATA4 & CAN1->sFIFOMailBox[RxFifo].RDHR) >> CAN_RDH0R_DATA4_Pos);
+    frame.Data[5] = (uint8_t)((CAN_RDH0R_DATA5 & CAN1->sFIFOMailBox[RxFifo].RDHR) >> CAN_RDH0R_DATA5_Pos);
+    frame.Data[6] = (uint8_t)((CAN_RDH0R_DATA6 & CAN1->sFIFOMailBox[RxFifo].RDHR) >> CAN_RDH0R_DATA6_Pos);
+    frame.Data[7] = (uint8_t)((CAN_RDH0R_DATA7 & CAN1->sFIFOMailBox[RxFifo].RDHR) >> CAN_RDH0R_DATA7_Pos);
+
+    /* Reset interrupt flag */
+    CAN1->TSR |= CAN_TSR_RQCP0;
+    CAN1->RF0R |= CAN_RF0R_RFOM0;
+    CAN_printframe(frame);
+	process_frame(frame);
+}
+
+/**
+ * @brief This function handles USER button interrupts.
+ */
+void EXTI0_IRQHandler(void) {
+	/* Clear interrupt flag */
+	EXTI->PR = EXTI_PR_PR0;
+}
+
+/**
+ * @brief System Clock Configuration
+ * @retval None
+ */
+void SystemClock_Config(void) {
+	RCC_OscInitTypeDef RCC_OscInitStruct = { 0 };
+	RCC_ClkInitTypeDef RCC_ClkInitStruct = { 0 };
+
+	/** Configure the main internal regulator output voltage
+	 */
+	__HAL_RCC_PWR_CLK_ENABLE();
+	__HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
+	/** Initializes the RCC Oscillators according to the specified parameters
+	 * in the RCC_OscInitTypeDef structure.
+	 */
+	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+	RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+	RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+	RCC_OscInitStruct.PLL.PLLM = 8;
+	RCC_OscInitStruct.PLL.PLLN = 336;
+	RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
+	RCC_OscInitStruct.PLL.PLLQ = 7;
+	if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
+		Error_Handler();
+	}
+	/** Initializes the CPU, AHB and APB buses clocks
+	 */
+	RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK
+			| RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+	RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+	RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
+	RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
+
+	if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK) {
+		Error_Handler();
+	}
+}
+
+
+/**
+ * @brief GPIO Initialization Function
+ * @param None
+ * @retval None
+ */
+static void MX_GPIO_Init(void) {
+
+	/* GPIO Ports Clock Enable */
+	__HAL_RCC_GPIOH_CLK_ENABLE();
+	__HAL_RCC_GPIOA_CLK_ENABLE();
+	__HAL_RCC_GPIOB_CLK_ENABLE();
 
 	RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN;
-	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN; // activer GPIOA pour bouton
-	SYSCFG->EXTICR[0] = SYSCFG_EXTICR1_EXTI0_PA; // source ext interrut PA[X]
-	EXTI->IMR |= EXTI_IMR_MR0; // unmask exti 0
-	EXTI->RTSR |= EXTI_RTSR_TR0; // Activer Rising Edge trigger pour la ligne 0
-	EXTI->FTSR &= ~EXTI_FTSR_TR0; // Desactiver Falling edge trigger pour la ligne 1
+
+	/* User button as input with pull up resistor */
+	GPIOA->MODER &= ~GPIO_MODER_MODER0_Msk;
+	GPIOA->PUPDR &= ~GPIO_PUPDR_PUPDR0_0;
+
+	SYSCFG->EXTICR[0] = SYSCFG_EXTICR1_EXTI0_PA; // Enable interrupt on GPIOA
+	EXTI->IMR |= EXTI_IMR_MR0;
+	EXTI->RTSR |= EXTI_RTSR_TR0; // Enable Rising Edge Trigger for PA0
 
 	NVIC_SetPriority (EXTI0_IRQn, 1);  // Set Priority
 	NVIC_EnableIRQ (EXTI0_IRQn);  // Enable Interrupt
-  /* USER CODE END 1 */
-
-  /* MCU Configuration--------------------------------------------------------*/
-
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-  HAL_Init();
-
-  /* USER CODE BEGIN Init */
-
-  /* USER CODE END Init */
-
-  /* Configure the system clock */
-  SystemClock_Config();
-
-  /* USER CODE BEGIN SysInit */
-
-  /* USER CODE END SysInit */
-
-  /* Initialize all configured peripherals */
-//   MX_GPIO_Init();
-//   MX_CAN1_Init();
-//   MX_USART2_UART_Init();
-//   MX_USART3_UART_Init();
-  /* USER CODE BEGIN 2 */
-  	// on configure le can
-  	CAN_config(0, 0, 0, 0xFFFF, 0xFFFF);
-	SystemClock_Config();
-
-	ACC_Setup(); // initialisser ACC après le SPI et après ACC GPIO
-
-	// LIN
-	LIN_SetReceiveCallback(&reception_handler); // mettre le callback
-	UART_Init(); // Initialiser le LIN (valeur par défaut slave)
-	LIN_SetMaster(); // Mettre le LIN Master
-	// LIN_SetSlave(); // Mettre le LIN slave
-
-	// faire le hello message
-	char hello[] = "Hello!";
-	helloMsg.ID = 'H';
-	memcpy(helloMsg.data, hello, strlen(hello));
-	helloMsg.length = strlen(hello);
-
-  /* USER CODE END 2 */
-
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
-	while (1)
-	{
-    /* USER CODE END WHILE */
-
-    /* USER CODE BEGIN 3 */
-	}
-  /* USER CODE END 3 */
-}
-
-/**
-  * @brief System Clock Configuration
-  * @retval None
-  */
-void SystemClock_Config(void)
-{
-  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
-  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
-
-  /** Configure the main internal regulator output voltage
-  */
-  __HAL_RCC_PWR_CLK_ENABLE();
-  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
-  /** Initializes the RCC Oscillators according to the specified parameters
-  * in the RCC_OscInitTypeDef structure.
-  */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLM = 8;
-  RCC_OscInitStruct.PLL.PLLN = 336;
-  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
-  RCC_OscInitStruct.PLL.PLLQ = 7;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /** Initializes the CPU, AHB and APB buses clocks
-  */
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
-                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
-  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
-
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK)
-  {
-    Error_Handler();
-  }
-}
-
-/**
-  * @brief CAN1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_CAN1_Init(void)
-{
-
-  /* USER CODE BEGIN CAN1_Init 0 */
-
-  /* USER CODE END CAN1_Init 0 */
-
-  /* USER CODE BEGIN CAN1_Init 1 */
-
-  /* USER CODE END CAN1_Init 1 */
-  hcan1.Instance = CAN1;
-  hcan1.Init.Prescaler = 17;
-  hcan1.Init.Mode = CAN_MODE_NORMAL;
-  hcan1.Init.SyncJumpWidth = CAN_SJW_1TQ;
-  hcan1.Init.TimeSeg1 = CAN_BS1_6TQ;
-  hcan1.Init.TimeSeg2 = CAN_BS2_3TQ;
-  hcan1.Init.TimeTriggeredMode = DISABLE;
-  hcan1.Init.AutoBusOff = DISABLE;
-  hcan1.Init.AutoWakeUp = DISABLE;
-  hcan1.Init.AutoRetransmission = DISABLE;
-  hcan1.Init.ReceiveFifoLocked = DISABLE;
-  hcan1.Init.TransmitFifoPriority = DISABLE;
-  if (HAL_CAN_Init(&hcan1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN CAN1_Init 2 */
-
-  /* USER CODE END CAN1_Init 2 */
-
-}
-
-/**
-  * @brief USART2 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_USART2_UART_Init(void)
-{
-
-  /* USER CODE BEGIN USART2_Init 0 */
-
-  /* USER CODE END USART2_Init 0 */
-
-  /* USER CODE BEGIN USART2_Init 1 */
-
-  /* USER CODE END USART2_Init 1 */
-  huart2.Instance = USART2;
-  huart2.Init.BaudRate = 9600;
-  huart2.Init.WordLength = UART_WORDLENGTH_8B;
-  huart2.Init.StopBits = UART_STOPBITS_1;
-  huart2.Init.Parity = UART_PARITY_NONE;
-  huart2.Init.Mode = UART_MODE_TX_RX;
-  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
-  if (HAL_UART_Init(&huart2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN USART2_Init 2 */
-
-  /* USER CODE END USART2_Init 2 */
-
-}
-
-/**
-  * @brief USART3 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_USART3_UART_Init(void)
-{
-
-  /* USER CODE BEGIN USART3_Init 0 */
-
-  /* USER CODE END USART3_Init 0 */
-
-  /* USER CODE BEGIN USART3_Init 1 */
-
-  /* USER CODE END USART3_Init 1 */
-  huart3.Instance = USART3;
-  huart3.Init.BaudRate = 9600;
-  huart3.Init.WordLength = UART_WORDLENGTH_8B;
-  huart3.Init.StopBits = UART_STOPBITS_1;
-  huart3.Init.Parity = UART_PARITY_NONE;
-  huart3.Init.Mode = UART_MODE_TX_RX;
-  huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart3.Init.OverSampling = UART_OVERSAMPLING_16;
-  if (HAL_LIN_Init(&huart3, UART_LINBREAKDETECTLENGTH_10B) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN USART3_Init 2 */
-
-  /* USER CODE END USART3_Init 2 */
-
-}
-
-/**
-  * @brief GPIO Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_GPIO_Init(void)
-{
-
-  /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOH_CLK_ENABLE();
-  __HAL_RCC_GPIOA_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
-
 }
 
 /* USER CODE BEGIN 4 */
@@ -367,18 +277,16 @@ static void MX_GPIO_Init(void)
 /* USER CODE END 4 */
 
 /**
-  * @brief  This function is executed in case of error occurrence.
-  * @retval None
-  */
-void Error_Handler(void)
-{
-  /* USER CODE BEGIN Error_Handler_Debug */
-  /* User can add his own implementation to report the HAL error return state */
-  __disable_irq();
-  while (1)
-  {
-  }
-  /* USER CODE END Error_Handler_Debug */
+ * @brief  This function is executed in case of error occurrence.
+ * @retval None
+ */
+void Error_Handler(void) {
+	/* USER CODE BEGIN Error_Handler_Debug */
+	/* User can add his own implementation to report the HAL error return state */
+	__disable_irq();
+	while (1) {
+	}
+	/* USER CODE END Error_Handler_Debug */
 }
 
 #ifdef  USE_FULL_ASSERT
