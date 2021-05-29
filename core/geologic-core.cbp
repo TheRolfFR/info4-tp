@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="geologic-core" />
+		<Option pch_mode="2" />
+		<Option compiler="gcc" />
+		<Build>
+			<Target title="Debug">
+				<Option output="bin/Debug/geologic-core" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="bin/Debug" />
+				<Option object_output="obj/Debug/" />
+				<Option type="3" />
+				<Option compiler="gcc" />
+				<Option createDefFile="1" />
+				<Option createStaticLib="1" />
+				<Compiler>
+					<Add option="-g" />
+					<Add directory="include/geologic-core/objects/geo/untemporal/coordinateSystems" />
+					<Add directory="include/geologic-core/objects/geo/untemporal" />
+					<Add directory="include/geologic-core/core/geologic-mapper/geo" />
+				</Compiler>
+			</Target>
+			<Target title="Release">
+				<Option output="bin/Release/geologic-core" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="bin/Release" />
+				<Option object_output="obj/Release/" />
+				<Option type="3" />
+				<Option compiler="gcc" />
+				<Option host_application="C:/Users/Etienne/Documents/Cours SPIM/Norm-Atis-Laptop/software/Norm-Atis/bin/Release/Norm-Atis.exe" />
+				<Option run_host_application_in_terminal="0" />
+				<Option createDefFile="1" />
+				<Option createStaticLib="1" />
+				<Compiler>
+					<Add option="-O2" />
+					<Add directory="include/geologic-core/objects/geo/untemporal/coordinateSystems" />
+					<Add directory="include/geologic-core/objects/geo/untemporal" />
+					<Add directory="include/geologic-core/core/geologic-mapper/geo" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+				</Linker>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-O3" />
+			<Add option="-std=c++0x" />
+			<Add option="-Wextra" />
+			<Add option="-Wall" />
+			<Add option="-std=c++14" />
+			<Add directory="include" />
+			<Add directory="C:/msys/1.0/local/include" />
+		</Compiler>
+		<Linker>
+			<Add library="gdal-20" />
+			<Add library="shp-2" />
+			<Add library="Geographic" />
+			<Add library="proj-12" />
+			<Add directory="C:/msys/1.0/local/bin" />
+		</Linker>
+		<Unit filename="include/geologic-core/algorithms/geoMetrics/geoMetrics.h" />
+		<Unit filename="include/geologic-core/algorithms/json/json-forwards.h" />
+		<Unit filename="include/geologic-core/algorithms/json/json.h" />
+		<Unit filename="include/geologic-core/algorithms/shapefile/GeoZoneShapefile.h" />
+		<Unit filename="include/geologic-core/algorithms/trajectories/Bspline.h" />
+		<Unit filename="include/geologic-core/algorithms/trajectories/TrajectoryManager.h" />
+		<Unit filename="include/geologic-core/core/GeologicModule.h" />
+		<Unit filename="include/geologic-core/core/geologic-launcher/CoordinateSystemManager.h" />
+		<Unit filename="include/geologic-core/core/geologic-launcher/GeologicLauncher.h" />
+		<Unit filename="include/geologic-core/core/geologic-launcher/ShapefileReader.h" />
+		<Unit filename="include/geologic-core/core/geologic-mapper/GeologicMapper.h" />
+		<Unit filename="include/geologic-core/core/geologic-mapper/geo/CoordinateSystemMap.h" />
+		<Unit filename="include/geologic-core/core/geologic-mapper/geo/CoordinateTransformationMap.h" />
+		<Unit filename="include/geologic-core/core/geologic-mapper/geo/GeoZoneHierarchyMap.h" />
+		<Unit filename="include/geologic-core/core/geologic-mapper/geo/GeoZoneMap.h" />
+		<Unit filename="include/geologic-core/core/geologic-mapper/social/IndividualMap.h" />
+		<Unit filename="include/geologic-core/core/geologic-mapper/transportation/TransportationTypeMap.h" />
+		<Unit filename="include/geologic-core/graphe/Edge.h" />
+		<Unit filename="include/geologic-core/graphe/Edge.h" />
+		<Unit filename="include/geologic-core/graphe/Node.h" />
+		<Unit filename="include/geologic-core/graphe/Node.h" />
+		<Unit filename="include/geologic-core/graphicTemplates/GeologicCustomizeObject.h" />
+		<Unit filename="include/geologic-core/graphicTemplates/GeologicGeometricalObject.h" />
+		<Unit filename="include/geologic-core/graphicTemplates/GeologicGraphicalObject.h" />
+		<Unit filename="include/geologic-core/graphicTemplates/GeologicGraphicalObjectFlow.h" />
+		<Unit filename="include/geologic-core/graphicTemplates/GeologicGraphicalObjectMobile.h" />
+		<Unit filename="include/geologic-core/graphicTemplates/GeologicGraphicalObjectShape.h" />
+		<Unit filename="include/geologic-core/objects/dynamic/Displacement.h" />
+		<Unit filename="include/geologic-core/objects/dynamic/GraphMobileObject.h" />
+		<Unit filename="include/geologic-core/objects/dynamic/MobileObject.h" />
+		<Unit filename="include/geologic-core/objects/dynamic/Trajectory.h" />
+		<Unit filename="include/geologic-core/objects/dynamic/Trip.h" />
+		<Unit filename="include/geologic-core/objects/geo/temporal/TemporalGeoData.h" />
+		<Unit filename="include/geologic-core/objects/geo/temporal/TemporalGeoPoint.h" />
+		<Unit filename="include/geologic-core/objects/geo/temporal/TemporalGeoZone.h" />
+		<Unit filename="include/geologic-core/objects/geo/untemporal/Bbox.h" />
+		<Unit filename="include/geologic-core/objects/geo/untemporal/GeoZone.h" />
+		<Unit filename="include/geologic-core/objects/social/Individual.h" />
+		<Unit filename="include/geologic-core/objects/transportation/Car.h" />
+		<Unit filename="include/geologic-core/objects/transportation/Cycle.h" />
+		<Unit filename="include/geologic-core/objects/transportation/Footman.h" />
+		<Unit filename="include/geologic-core/objects/transportation/TransportationType.h" />
+		<Unit filename="include/geologic-core/objects/urban/roadloader.h" />
+		<Unit filename="include/geologic-core/objects/urban/roads.h" />
+		<Unit filename="include/geologic-core/roles/Role.h" />
+		<Unit filename="include/geologic-core/roles/RoleDynamics.h" />
+		<Unit filename="include/geologic-core/roles/RoleGeo.h" />
+		<Unit filename="include/geologic-core/roles/RoleIndividualManager.h" />
+		<Unit filename="include/geologic-core/roles/RoleManager.h" />
+		<Unit filename="include/geologic-core/roles/RoleModule.h" />
+		<Unit filename="include/geologic-core/roles/RoleRoadNetworkManager.h" />
+		<Unit filename="include/geologic-core/roles/RoleTransportationPlannerAuthority.h" />
+		<Unit filename="include/geologic-core/roles/permissions/CarPermission.h" />
+		<Unit filename="include/geologic-core/roles/permissions/CyclePermission.h" />
+		<Unit filename="include/geologic-core/roles/permissions/EmptyPermission.h" />
+		<Unit filename="include/geologic-core/roles/permissions/FootPermission.h" />
+		<Unit filename="include/geologic-core/roles/permissions/Permission.h" />
+		<Unit filename="include/geologic-core/roles/restrictions/EmptyRestriction.h" />
+		<Unit filename="include/geologic-core/roles/restrictions/NoturnRestriction.h" />
+		<Unit filename="include/geologic-core/roles/restrictions/OnewayRestriction.h" />
+		<Unit filename="include/geologic-core/roles/restrictions/Restriction.h" />
+		<Unit filename="include/geologic-core/superClasses/Mapper.h" />
+		<Unit filename="include/geologic-core/superClasses/Metadata.h" />
+		<Unit filename="include/geologic-core/superClasses/Module.h" />
+		<Unit filename="include/geologic-core/superClasses/Parser.h" />
+		<Unit filename="include/geologic-core/utils/customToolbox.h" />
+		<Unit filename="include/geologic-core/utils/customToolbox_impl.h" />
+		<Unit filename="src/geologic-core/algorithms/geoMetrics/geoMetrics.cpp" />
+		<Unit filename="src/geologic-core/algorithms/json/jsoncpp.cpp" />
+		<Unit filename="src/geologic-core/algorithms/shapefile/GeoZoneShapefile.cpp" />
+		<Unit filename="src/geologic-core/algorithms/trajectories/Bspline.cpp" />
+		<Unit filename="src/geologic-core/algorithms/trajectories/TrajectoryManager.cpp" />
+		<Unit filename="src/geologic-core/core/GeologicModule.cpp" />
+		<Unit filename="src/geologic-core/core/geologic-launcher/CoordinateSystemManager.cpp" />
+		<Unit filename="src/geologic-core/core/geologic-launcher/GeologicLauncher.cpp" />
+		<Unit filename="src/geologic-core/core/geologic-launcher/ShapefileReader.cpp" />
+		<Unit filename="src/geologic-core/core/geologic-mapper/GeologicMapper.cpp" />
+		<Unit filename="src/geologic-core/core/geologic-mapper/geo/CoordinateSystemMap.cpp" />
+		<Unit filename="src/geologic-core/core/geologic-mapper/geo/CoordinateTransformationMap.cpp" />
+		<Unit filename="src/geologic-core/core/geologic-mapper/geo/GeoZoneHierarchyMap.cpp" />
+		<Unit filename="src/geologic-core/core/geologic-mapper/geo/GeoZoneMap.cpp" />
+		<Unit filename="src/geologic-core/core/geologic-mapper/social/IndividualMap.cpp" />
+		<Unit filename="src/geologic-core/core/geologic-mapper/transportation/TransportationTypeMap.cpp" />
+		<Unit filename="src/geologic-core/graphe/Edge.cpp" />
+		<Unit filename="src/geologic-core/graphe/Node.cpp" />
+		<Unit filename="src/geologic-core/graphicTemplates/GeologicCustomizeObject.cpp" />
+		<Unit filename="src/geologic-core/graphicTemplates/GeologicGeometricalObject.cpp" />
+		<Unit filename="src/geologic-core/graphicTemplates/GeologicGraphicalObject.cpp" />
+		<Unit filename="src/geologic-core/graphicTemplates/GeologicGraphicalObjectFlow.cpp" />
+		<Unit filename="src/geologic-core/graphicTemplates/GeologicGraphicalObjectMobile.cpp" />
+		<Unit filename="src/geologic-core/graphicTemplates/GeologicGraphicalObjectShape.cpp" />
+		<Unit filename="src/geologic-core/objects/dynamic/Displacement.cpp" />
+		<Unit filename="src/geologic-core/objects/dynamic/GraphMobileObject.cpp" />
+		<Unit filename="src/geologic-core/objects/dynamic/MobileObject.cpp" />
+		<Unit filename="src/geologic-core/objects/dynamic/Trajectory.cpp" />
+		<Unit filename="src/geologic-core/objects/dynamic/Trip.cpp" />
+		<Unit filename="src/geologic-core/objects/geo/temporal/TemporalGeoData.cpp" />
+		<Unit filename="src/geologic-core/objects/geo/temporal/TemporalGeoPoint.cpp" />
+		<Unit filename="src/geologic-core/objects/geo/temporal/TemporalGeoZone.cpp" />
+		<Unit filename="src/geologic-core/objects/geo/untemporal/Bbox.cpp" />
+		<Unit filename="src/geologic-core/objects/geo/untemporal/GeoZone.cpp" />
+		<Unit filename="src/geologic-core/objects/social/Individual.cpp" />
+		<Unit filename="src/geologic-core/objects/transportation/Car.cpp" />
+		<Unit filename="src/geologic-core/objects/transportation/Cycle.cpp" />
+		<Unit filename="src/geologic-core/objects/transportation/Footman.cpp" />
+		<Unit filename="src/geologic-core/objects/transportation/TransportationType.cpp" />
+		<Unit filename="src/geologic-core/objects/urban/roadloader.cpp" />
+		<Unit filename="src/geologic-core/objects/urban/roads.cpp" />
+		<Unit filename="src/geologic-core/roles/Role.cpp" />
+		<Unit filename="src/geologic-core/roles/RoleDynamics.cpp" />
+		<Unit filename="src/geologic-core/roles/RoleGeo.cpp" />
+		<Unit filename="src/geologic-core/roles/RoleIndividualManager.cpp" />
+		<Unit filename="src/geologic-core/roles/RoleManager.cpp" />
+		<Unit filename="src/geologic-core/roles/RoleModule.cpp" />
+		<Unit filename="src/geologic-core/roles/RoleRoadNetworkManager.cpp" />
+		<Unit filename="src/geologic-core/roles/RoleTransportationPlannerAuthority.cpp" />
+		<Unit filename="src/geologic-core/roles/permissions/CarPermission.cpp" />
+		<Unit filename="src/geologic-core/roles/permissions/CyclePermission.cpp" />
+		<Unit filename="src/geologic-core/roles/permissions/EmptyPermission.cpp" />
+		<Unit filename="src/geologic-core/roles/permissions/FootPermission.cpp" />
+		<Unit filename="src/geologic-core/roles/restrictions/EmptyRestriction.cpp" />
+		<Unit filename="src/geologic-core/roles/restrictions/NoturnRestriction.cpp" />
+		<Unit filename="src/geologic-core/roles/restrictions/OnewayRestriction.cpp" />
+		<Unit filename="src/geologic-core/superClasses/Mapper.cpp" />
+		<Unit filename="src/geologic-core/superClasses/Metadata.cpp" />
+		<Unit filename="src/geologic-core/superClasses/Module.cpp" />
+		<Unit filename="src/geologic-core/superClasses/Parser.cpp" />
+		<Unit filename="src/geologic-core/utils/customToolbox.cpp" />
+		<Extensions>
+			<code_completion />
+			<envvars />
+			<debugger />
+			<lib_finder disable_auto="1" />
+			<DoxyBlocks>
+				<comment_style block="0" line="0" />
+				<doxyfile_project />
+				<doxyfile_build />
+				<doxyfile_warnings />
+				<doxyfile_output />
+				<doxyfile_dot class_diagrams="1" />
+				<general />
+			</DoxyBlocks>
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>

@@ -1,0 +1,15 @@
+obj/
+debug/
+doxygen/
+models/
+geologic-core.pro.user
+Makefile
+Makefile.Debug
+Makefile.Release
+object_script.geologic-core.Debug
+object_script.geologic-core.Release
+geologic-core.layout
+geologic-core.depend
+.qmake.stash
+release/*
+*.pro.user*

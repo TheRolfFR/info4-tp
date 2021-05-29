@@ -1,0 +1,14 @@
+#ifndef GEOLOGICGUI_GLOBAL_H
+#define GEOLOGICGUI_GLOBAL_H
+
+#include <QtCore/qglobal.h>
+#include <tuple>
+
+#if defined(GEOLOGICGUI_LIBRARY)
+#  define GEOLOGICGUISHARED_EXPORT Q_DECL_EXPORT
+#else
+#  define GEOLOGICGUISHARED_EXPORT Q_DECL_IMPORT
+#endif
+
+
+#endif // GEOLOGICGUI_GLOBAL_H

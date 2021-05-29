@@ -1,0 +1,12 @@
+bin/
+obj/
+debug/
+doxygen/
+release/
+.qmake.stash
+Makefile
+Makefile.Debug
+Makefile.Release
+object_script.geologic-osm.Debug
+object_script.geologic-osm.Release
+*.pro.user*
