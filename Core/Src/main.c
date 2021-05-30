@@ -90,7 +90,7 @@ void process_frame(CAN_frame frame) {
 	}
 
 	// bref quoi qu'il arrive on renvoie l'etat_commodo par LIN
-	envoyer_etat_lin();
+	envoyer_etat_lin(0);
 }
 /* USER CODE END 0 */
 
@@ -127,7 +127,7 @@ int main(void) {
 	// contruct big id
 	uint32_t base = 0x10 << 24;
 	uint32_t receiver = 0x51 << 16; // numéro de l'esclave: 51 c'est clignotants
-	uint32_t emitter = 0x10 << 8; // numéro du poste
+	uint32_t emitter = 0x7 << 8; // numéro du poste
 	uint32_t fonction = 0;
 
 	uint32_t ext_id = base | receiver | emitter | fonction;
