@@ -9,7 +9,7 @@
 QT += network opengl xml core gui
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 TEMPLATE = lib
-CONFIG += c++11
+CONFIG += c++14
 TARGET = geologic-gui
 QMAKE_CXXFLAGS += -Wall -Wextra
 release: DESTDIR = ./release
@@ -18,7 +18,7 @@ release: OBJECTS_DIR = ./obj
 
 
 ### ------------------------------------->
-INCLUDEPATH += "$$PWD/include" $$PWD/../core-master/include $$PWD/../osm-master/
+INCLUDEPATH += "$$PWD/include" $$PWD/../core/include $$PWD/../osm/
 win32: INCLUDEPATH += c:/msys/1.0/local/include
 else:unix: INCLUDEPATH += /usr/include/gdal /usr/include/freetype2
 ### -------------------------------------<
@@ -48,8 +48,8 @@ else:win32:CONFIG(debug, debug|release): LIBS += -Lc:/msys/1.0/local/lib/ -lshpd
 
 win32:CONFIG(release, debug|release): LIBS += -L$$PWD/../geologic-core/release/ -lgeologic-core
 else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/../geologic-core/debug/ -lgeologic-core
-else:unix:CONFIG(debug, debug|release): LIBS += -L$$PWD/../build-geologic-core-Desktop-Debug/release/ -lgeologic-core
-else:unix:: LIBS += -L$$PWD/../build-geologic-core-Desktop-Release/release/ -lgeologic-core
+else:unix:CONFIG(debug, debug|release): LIBS += -L$$PWD/../geologic-core/release/ -lgeologic-core
+else:unix:: LIBS += -L$$PWD/../geologic-core/release/ -lgeologic-core
 
 
 win32::LIBS += -lopengl32 -lglu32 -lmingw32 -lfreeglut

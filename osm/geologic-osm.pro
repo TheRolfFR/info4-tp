@@ -19,14 +19,14 @@ release: OBJECTS_DIR = ./obj
 
 
 ### ------------------------------------->
-INCLUDEPATH += "$$PWD/include" $$PWD/../geologic-core/include
+INCLUDEPATH += "$$PWD/include" $$PWD/../core/include
 win32: INCLUDEPATH += c:/msys/1.0/local/include $$PWD/../libgeologic-gui
 else:unix: INCLUDEPATH += /usr/include/gdal $$PWD/../gui/include $$PWD/../core/include
 ### -------------------------------------<
 
 
 ### ------------------------------------->
-win32: DEPENDPATH += c:/msys/1.0/local/include $$PWD/../geologic-core/include  $$PWD/../libgeologic-gui/include
+win32: DEPENDPATH += c:/msys/1.0/local/include $$PWD/../core/include  $$PWD/../libgeologic-gui/include
 else:unix: DEPENDPATH += $$PWD/../core/include  $$PWD/../gui/include
 ### -------------------------------------<
 
@@ -39,11 +39,11 @@ else:unix: LIBS += -lgdal
 #win32:CONFIG(release, debug|release): LIBS += -Lc:/msys/1.0/local/lib/ -lreadosm
 #else:win32:CONFIG(debug, debug|release): LIBS += -Lc:/msys/1.0/local/lib/ -lreadosmd
 
-win32:CONFIG(release, debug|release): LIBS += -L$$PWD/../geologic-core/release/ -lgeologic-core
-else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/../geologic-core/debug/ -lgeologic-cored
+win32:CONFIG(release, debug|release): LIBS += -L$$PWD/../core/release/ -lcore
+else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/../core/debug/ -lcored
 
 win32:CONFIG(release, debug|release): LIBS += -L$$PWD/../libgeologic-gui/release/ -lgeologic-gui
-else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/../libgeologic-gui/debug/ -lgeologic-guid
+else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/../libgeologic-gui/debug/ -lgeologic-gui
 
 win32::LIBS += -lopengl32 -lglu32 -lglut -lmingw32 -lgeologic-gui
 ### -------------------------------------<

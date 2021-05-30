@@ -95,14 +95,14 @@ With this in mind, we'll use the implementations defined below.
 This class is pretty simple. The only relevant code is in its constructor. Line 3, we must call its parent class constructor. On line 4, we define a color named `"diffuse"`. The `"diffuse"` name will be transfered to the GPU and the relevant fragment shader as a uniform value with this name, and the 4 floating point values defining a semi-transparent white (255, 255, 255, 0.5). Display mode is set to `GL_LINE` on line 5 to display only the boundaries borders (not filling the interior).
 
 ```cpp
-1 class BoundariesMaterial: public Material {
-2 public:
-3     BoundariesMaterial(): Material("BoundariesMaterial") {
-4         setColor("diffuse", Color{255.0f, 255.0f, 255.0f, 0.5f});
-5         setDisplayMode(GL_LINE);
-6     }
-7     virtual ~BoundariesMaterial() {}
-8 };
+class BoundariesMaterial: public Material {
+public:
+    BoundariesMaterial(): Material("BoundariesMaterial") {
+        setColor("diffuse", Color{255.0f, 255.0f, 255.0f, 0.5f});
+        setDisplayMode(GL_LINE);
+    }
+    virtual ~BoundariesMaterial() {}
+};
 ```
 
 Here is the `"zone"` fragment shader code, in which we notice the `"diffuse"` uniform parameter.

@@ -1,0 +1,19 @@
+import bpy
+from bpy import context
+
+# Get the current scene
+scene = context.scene
+
+# Get the 3D cursor
+cursor = scene.cursor_location
+
+# Get the active object (assume we have one)
+obj = scene.objects.active
+
+verts = []
+for v in obj.data.vertices:
+    verts.append(v)
+verts.sort(key=lambda v: v.co.x)
+for v in verts:
+    a = obj.matrix_world * v.co
+    print(str(a.x) + ", " + str(a.y) + ", " + str(a.z) + ",")

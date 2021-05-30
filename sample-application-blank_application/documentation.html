@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<title>stage</title>
+<meta name="generator" content="Etherpad">
+<meta name="author" content="Etherpad">
+<meta name="changedby" content="Etherpad">
+<meta charset="utf-8">
+<style>
+* {
+  font-family: arial, sans-serif;
+  font-size: 13px;
+  line-height: 17px;
+}
+ul.indent {
+  list-style-type: none;
+}
+ol {
+  list-style-type: none;
+  padding-left: 0;
+}
+body > ol {
+  counter-reset: first second third fourth fifth sixth seventh eighth ninth tenth eleventh twelfth thirteenth fourteenth fifteenth sixteenth;
+}
+ol > li:before {
+  content: counter(first) ". ";
+  counter-increment: first;
+}
+ol > ol > li:before {
+  content: counter(first) "." counter(second) ". ";
+  counter-increment: second;
+}
+ol > ol > ol > li:before {
+  content: counter(first) "." counter(second) "." counter(third) ". ";
+  counter-increment: third;
+}
+ol > ol > ol > ol > li:before {
+  content: counter(first) "." counter(second) "." counter(third) "." counter(fourth) ". ";
+  counter-increment: fourth;
+}
+ol > ol > ol > ol > ol > li:before {
+  content: counter(first) "." counter(second) "." counter(third) "." counter(fourth) "." counter(fifth) ". ";
+  counter-increment: fifth;
+}
+ol > ol > ol > ol > ol > ol > li:before {
+  content: counter(first) "." counter(second) "." counter(third) "." counter(fourth) "." counter(fifth) "." counter(sixth) ". ";
+  counter-increment: sixth;
+}
+ol > ol > ol > ol > ol > ol > ol > li:before {
+  content: counter(first) "." counter(second) "." counter(third) "." counter(fourth) "." counter(fifth) "." counter(sixth) "." counter(seventh) ". ";
+  counter-increment: seventh;
+}
+ol > ol > ol > ol > ol > ol > ol > ol > li:before {
+  content: counter(first) "." counter(second) "." counter(third) "." counter(fourth) "." counter(fifth) "." counter(sixth) "." counter(seventh) "." counter(eighth) ". ";
+  counter-increment: eighth;
+}
+ol > ol > ol > ol > ol > ol > ol > ol > ol > li:before {
+  content: counter(first) "." counter(second) "." counter(third) "." counter(fourth) "." counter(fifth) "." counter(sixth) "." counter(seventh) "." counter(eighth) "." counter(ninth) ". ";
+  counter-increment: ninth;
+}
+ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > li:before {
+  content: counter(first) "." counter(second) "." counter(third) "." counter(fourth) "." counter(fifth) "." counter(sixth) "." counter(seventh) "." counter(eighth) "." counter(ninth) "." counter(tenth) ". ";
+  counter-increment: tenth;
+}
+ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > li:before {
+  content: counter(first) "." counter(second) "." counter(third) "." counter(fourth) "." counter(fifth) "." counter(sixth) "." counter(seventh) "." counter(eighth) "." counter(ninth) "." counter(tenth) "." counter(eleventh) ". ";
+  counter-increment: eleventh;
+}
+ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > li:before {
+  content: counter(first) "." counter(second) "." counter(third) "." counter(fourth) "." counter(fifth) "." counter(sixth) "." counter(seventh) "." counter(eighth) "." counter(ninth) "." counter(tenth) "." counter(eleventh) "." counter(twelfth) ". ";
+  counter-increment: twelfth;
+}
+ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > li:before {
+  content: counter(first) "." counter(second) "." counter(third) "." counter(fourth) "." counter(fifth) "." counter(sixth) "." counter(seventh) "." counter(eighth) "." counter(ninth) "." counter(tenth) "." counter(eleventh) "." counter(twelfth) "." counter(thirteenth) ". ";
+  counter-increment: thirteenth;
+}
+ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > li:before {
+  content: counter(first) "." counter(second) "." counter(third) "." counter(fourth) "." counter(fifth) "." counter(sixth) "." counter(seventh) "." counter(eighth) "." counter(ninth) "." counter(tenth) "." counter(eleventh) "." counter(twelfth) "." counter(thirteenth) "." counter(fourteenth) ". ";
+  counter-increment: fourteenth;
+}
+ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > li:before {
+  content: counter(first) "." counter(second) "." counter(third) "." counter(fourth) "." counter(fifth) "." counter(sixth) "." counter(seventh) "." counter(eighth) "." counter(ninth) "." counter(tenth) "." counter(eleventh) "." counter(twelfth) "." counter(thirteenth) "." counter(fourteenth) "." counter(fifteenth) ". ";
+  counter-increment: fifteenth;
+}
+ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > li:before {
+  content: counter(first) "." counter(second) "." counter(third) "." counter(fourth) "." counter(fifth) "." counter(sixth) "." counter(seventh) "." counter(eighth) "." counter(ninth) "." counter(tenth) "." counter(eleventh) "." counter(twelfth) "." counter(thirteenth) "." counter(fourteenth) "." counter(fifteenth) "." counter(sixteenth) ". ";
+  counter-increment: sixteenth;
+}
+ol {
+  text-indent: 0px;
+}
+ol > ol {
+  text-indent: 10px;
+}
+ol > ol > ol {
+  text-indent: 20px;
+}
+ol > ol > ol > ol {
+  text-indent: 30px;
+}
+ol > ol > ol > ol > ol {
+  text-indent: 40px;
+}
+ol > ol > ol > ol > ol > ol {
+  text-indent: 50px;
+}
+ol > ol > ol > ol > ol > ol > ol {
+  text-indent: 60px;
+}
+ol > ol > ol > ol > ol > ol > ol > ol {
+  text-indent: 70px;
+}
+ol > ol > ol > ol > ol > ol > ol > ol > ol {
+  text-indent: 80px;
+}
+ol > ol > ol > ol > ol > ol > ol > ol > ol > ol {
+  text-indent: 90px;
+}
+ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol {
+  text-indent: 100px;
+}
+ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol {
+  text-indent: 110px;
+}
+ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol {
+  text-indent: 120px;
+}
+ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol {
+  text-indent: 130px;
+}
+ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol {
+  text-indent: 140px;
+}
+ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol > ol {
+  text-indent: 150px;
+}
+
+</style>
+</head>
+<body>
+<strong><u>Scene tree: Update&#x2F;Render</u></strong><br><br>The scene is composed of views, each view represents a different concept to display. (ex: the map, the clock, ...)<br>A view has two object trees linking the same objects:<br><ul class="bullet"><li>The first one is the update tree, it is hierarchicaly structured. (A vehicle position belongs to a vehicle wich belongs to a fleet wich belongs to the root)</ul>It is used for updating the state of the scene. (ex: moving object, loading new tiles, ...)<br><br><ul class="bullet"><li>The second one, the render tree, is composed of layers.</ul><br>Each layer has a list of ChildObject to display.<br>This tree is used to render the objects in the right order (for transparency and depth test) and without passing through the parent objects.<br><br>So the render tree is composed of the leafs of the update tree.<br><br><strong><u>Data: Generic&#x2F;Unique</u></strong><br><ul class="indent"><li></ul>A Data represents the raw values that will be used by the GPU, it can be of two types:<br><ul class="bullet"><li>Unique:</ul>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; A UniqueData will be used by only one object, has it intimately corresponds to this object. (ex: each vector tile has different roads and so different Data)<br><br><ul class="bullet"><li>Generic:</ul>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; A GenericData means that it can be used by multiple objects. (ex: the vehicle position is a circle whatever vehicle we are talking about). A GenericData should be created and added during the program initialization to the DataManager wich permit the reuse of this object and so saving some space and a lot of CPU&#x2F;GPU time.<br>&nbsp;&nbsp;&nbsp;&nbsp;<br><strong><u>Objects: Generator&#x2F;Parent&#x2F;Child</u></strong><br><br>When designing a new object, there is three possibilities:<br><ul class="bullet"><li>Child: A ChildObject is a tree leaf, this is the actual object that will be displayed</li><li>Parent: A ParentObject is an empty node that is used to aggregate multiple ChildObjects (ex: A VehicleObject is a ParentObject and has multiple ChildObjects as childs: VehiclePositionObject, VehicleDestinationObject, ...)</li><li>Generator: A GeneratorObject is a ParentObject with the subtility that it can erase and recreate its childs during an update. This class is not mandatory but it helps reading the code by adding semantics.</ul><br>A ChildObject will eventually add itself to a layer render tree during its creation and remove itself during the deletion.<br><br><strong><u>Layers: Generic&#x2F;Unique</u></strong><br><br>A layer should represent only one type of information (ex: vehicle position, vehicle destination) for the transparency and the checkbox to work.<br><br>By reference to Data, a Layer can be of two types:<br><ul class="bullet"><li>Unique:</ul>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; In this case, each ChildObject will bind its own Data. So there is as much bind as Objects.<br><ul class="bullet"><li>Generic:</ul>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; A GenericLayer has its own Data and Material. It will bind them once and the his ChildObjects to draw. There is only one bind. (cf. Vanet.cpp)<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>Use as much GenericLayer &#x2F; GenericData as you can.<br><br><strong><u>Data Loading Thread</u></strong><br><br>There is two functions that will help you loading whatever you need in the GPU:<br><ul class="bullet"><li>preloadThread(): This function is executed before the actual transfert to the GPU memory. It is executed in another thread to make no harm to the application fps counter and keep the application fluid. It can be overloaded to process data in the background (ex: VectorTileData.cpp).</li><li>load(): This function will actualy transfert the raw vertices, colors, etc, to the graphic card memory. It can be overloaded to add extra data to the memory (cf. AntennaData.cpp). As OpenGL does not permit concurrent acces to the OpenGL context, load() is executed in the main thread.</ul><br>Each new Data object needs to be loaded in the GPU memory. For that, it you need to give this new object to the LoadingManager. Adding it to the loading list will call preloadThread() and wait for it to finish to call load().<br><br>
+</body>
+</html>
