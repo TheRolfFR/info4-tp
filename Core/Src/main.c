@@ -24,23 +24,13 @@
 /* USER CODE BEGIN Includes */
 #include "can.h"
 #include "usart2.h"
+#include "LEVAGUERES_commodo.h"
 #include "COM_LIN.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-typedef enum {
-	CLIGNO_DROITE = 1,
-	CLIGNO_REPOS = CLIGNO_DROITE * 2,
-	CLIGNO_GAUCHE = CLIGNO_REPOS * 2,
-} ClignoEtat;
 
-typedef enum {
-	FEUX_0 = CLIGNO_GAUCHE * 2,
-	FEUX_AUTO = FEUX_0 * 2,
-	FEUX_VEILLEUSES = FEUX_AUTO * 2,
-	FEUX_ROUTE = FEUX_VEILLEUSES * 2
-} FeuxEtat;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -49,14 +39,13 @@ typedef enum {
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-#define ETAT_METTRE_BIT(variable, condition, value) do { if(condition) { variable |= value; } else { variable &= (~value); } } while(0)
+
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
 int data = 0;
-uint8_t etat_commodo = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -69,29 +58,6 @@ static void MX_GPIO_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-void process_frame(CAN_frame frame) {
-	// ID déjà filtré
-	// on va voir la DLC, le premier voire second bite
-	if(frame.DLC >= 1) {
-		// clignotants
-		ETAT_METTRE_BIT(etat_commodo, frame.Data[0] & 0x4, CLIGNO_DROITE);
-		ETAT_METTRE_BIT(etat_commodo, frame.Data[0] & 0x8, CLIGNO_REPOS);
-		ETAT_METTRE_BIT(etat_commodo, frame.Data[0] & 0x10, CLIGNO_GAUCHE);
-	}
-
-	if (frame.DLC == 2) {
-		// feux
-		if((frame.Data[0] & 0x3) == 2) {
-			ETAT_METTRE_BIT(etat_commodo, frame.Data[1] == 2 || frame.Data[1] == 5, FEUX_0);
-			ETAT_METTRE_BIT(etat_commodo, frame.Data[1] == 3 || frame.Data[1] == 5, FEUX_AUTO);
-			ETAT_METTRE_BIT(etat_commodo, frame.Data[1] == 4 || frame.Data[1] == 9, FEUX_VEILLEUSES);
-			ETAT_METTRE_BIT(etat_commodo, frame.Data[1] == 0, FEUX_ROUTE);
-		}
-	}
-
-	// bref quoi qu'il arrive on renvoie l'etat_commodo par LIN
-	envoyer_etat_lin(0);
-}
 /* USER CODE END 0 */
 
 /**
@@ -135,7 +101,8 @@ int main(void) {
 	uint16_t CAN_FilterIdLow = (uint16_t) (ext_id << 3) | CAN_ID_EXT;
 
 	// on filtre uniquement la base et le receveur
-	uint32_t ext_msk = 0xFFFF << 16;
+	// uint32_t ext_msk = 0xFF << 16;
+	uint32_t ext_msk = 0;
 	uint16_t CAN_FilterMskHigh = ((ext_msk << 3) >> 16) & 0xffff;
 	uint16_t CAN_FilterMskLow = (uint16_t) (ext_msk << 3);
 
@@ -145,7 +112,7 @@ int main(void) {
 	LIN_SetSlave();
 	LIN_SetReceiveCallback(callback_LIN);
 	/* USER CODE END 2 */
-	EXTI0_IRQHandler();
+
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
 	while (1) {

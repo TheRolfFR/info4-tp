@@ -19,6 +19,7 @@ LINMSG etatMSG;
  */
 void envoyer_etat_lin(uint8_t reponse) {
 	etatMSG.length = 1;
+	etat_commodo ^= 64;
 	etatMSG.data[0] = etat_commodo;
 
 	if(reponse) {
