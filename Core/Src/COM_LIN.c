@@ -40,10 +40,16 @@ extern osSemaphoreId_t linBinarySemaphoreHandle;
  */
 void callback_LIN(uint8_t pid) {
 	uint8_t tmp_pid = pid;
-    if (xPortIsInsideInterrupt()) {
-    	xQueueSendToBackFromISR(linIDqueueHandle,(void*) &tmp_pid, NULL);
-    }
-    else {
-    	xQueueSendToBack(linIDqueueHandle, (void*) &tmp_pid, 10);
-    }
+	if(tmp_pid == COMMODO_PID_DEMANDE) {
+		LINMSG demandeEtat;
+		demandeEtat.ID = tmp_pid;
+		demandeEtat.length = 0;
+
+	    if (xPortIsInsideInterrupt()) {
+	    	xQueueSendToBackFromISR(linIDqueueHandle,(void*) &demandeEtat, NULL);
+	    }
+	    else {
+	    	xQueueSendToBack(linIDqueueHandle, (void*) &demandeEtat, 10);
+	    }
+	}
 }

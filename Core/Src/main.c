@@ -46,11 +46,6 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-CAN_HandleTypeDef hcan1;
-
-UART_HandleTypeDef huart2;
-UART_HandleTypeDef huart3;
-
 /* Definitions for tacheReponseLIN */
 osThreadId_t tacheReponseLINHandle;
 const osThreadAttr_t tacheReponseLIN_attributes = {
@@ -75,9 +70,6 @@ int data = 0;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_CAN1_Init(void);
-static void MX_USART2_UART_Init(void);
-static void MX_USART3_UART_Init(void);
 void StartTaskLIN(void *argument);
 
 /* USER CODE BEGIN PFP */
@@ -117,15 +109,12 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  // MX_CAN1_Init();
-  // MX_USART2_UART_Init();
-  // MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
 
 	// contruct big id
 	uint32_t base = 0x10 << 24;
-	uint32_t receiver = 0x7 << 16; // numéro de l'esclave: 51 c'est clignotants
-	uint32_t emitter = 0x51 << 8; // numéro du poste
+	uint32_t receiver = 0x0 << 16; // que les notifications
+	uint32_t emitter = 0x51 << 8; // numéro de l'esclave: 51 c'est clignotants
 	uint32_t fonction = 0;
 
 	(void) base;
@@ -138,8 +127,8 @@ int main(void)
 	uint16_t CAN_FilterIdHigh = ((ext_id << 3) >> 16) & 0xffff;
 	uint16_t CAN_FilterIdLow = (uint16_t) (ext_id << 3) | CAN_ID_EXT;
 
-	// on filtre uniquement la base et le receveur
-	uint32_t ext_msk = 0xFF00FF00;
+	// on filtre uniquement la base, l'emetteur et le receveur
+	uint32_t ext_msk = 0xFFFFFF00;
 	// uint32_t ext_msk = 0b100; // IDE is 0b100
 	uint16_t CAN_FilterMskHigh = ((ext_msk << 3) >> 16) & 0xffff;
 	uint16_t CAN_FilterMskLow = (uint16_t) (ext_msk << 3);
@@ -250,109 +239,6 @@ void SystemClock_Config(void)
 }
 
 /**
-  * @brief CAN1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_CAN1_Init(void)
-{
-
-  /* USER CODE BEGIN CAN1_Init 0 */
-
-  /* USER CODE END CAN1_Init 0 */
-
-  /* USER CODE BEGIN CAN1_Init 1 */
-
-  /* USER CODE END CAN1_Init 1 */
-  hcan1.Instance = CAN1;
-  hcan1.Init.Prescaler = 17;
-  hcan1.Init.Mode = CAN_MODE_NORMAL;
-  hcan1.Init.SyncJumpWidth = CAN_SJW_1TQ;
-  hcan1.Init.TimeSeg1 = CAN_BS1_6TQ;
-  hcan1.Init.TimeSeg2 = CAN_BS2_3TQ;
-  hcan1.Init.TimeTriggeredMode = DISABLE;
-  hcan1.Init.AutoBusOff = DISABLE;
-  hcan1.Init.AutoWakeUp = DISABLE;
-  hcan1.Init.AutoRetransmission = DISABLE;
-  hcan1.Init.ReceiveFifoLocked = DISABLE;
-  hcan1.Init.TransmitFifoPriority = DISABLE;
-  if (HAL_CAN_Init(&hcan1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN CAN1_Init 2 */
-
-  /* USER CODE END CAN1_Init 2 */
-
-}
-
-/**
-  * @brief USART2 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_USART2_UART_Init(void)
-{
-
-  /* USER CODE BEGIN USART2_Init 0 */
-
-  /* USER CODE END USART2_Init 0 */
-
-  /* USER CODE BEGIN USART2_Init 1 */
-
-  /* USER CODE END USART2_Init 1 */
-  huart2.Instance = USART2;
-  huart2.Init.BaudRate = 9600;
-  huart2.Init.WordLength = UART_WORDLENGTH_8B;
-  huart2.Init.StopBits = UART_STOPBITS_1;
-  huart2.Init.Parity = UART_PARITY_NONE;
-  huart2.Init.Mode = UART_MODE_TX_RX;
-  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
-  if (HAL_UART_Init(&huart2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN USART2_Init 2 */
-
-  /* USER CODE END USART2_Init 2 */
-
-}
-
-/**
-  * @brief USART3 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_USART3_UART_Init(void)
-{
-
-  /* USER CODE BEGIN USART3_Init 0 */
-
-  /* USER CODE END USART3_Init 0 */
-
-  /* USER CODE BEGIN USART3_Init 1 */
-
-  /* USER CODE END USART3_Init 1 */
-  huart3.Instance = USART3;
-  huart3.Init.BaudRate = 9600;
-  huart3.Init.WordLength = UART_WORDLENGTH_8B;
-  huart3.Init.StopBits = UART_STOPBITS_1;
-  huart3.Init.Parity = UART_PARITY_NONE;
-  huart3.Init.Mode = UART_MODE_TX_RX;
-  huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart3.Init.OverSampling = UART_OVERSAMPLING_16;
-  if (HAL_LIN_Init(&huart3, UART_LINBREAKDETECTLENGTH_10B) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN USART3_Init 2 */
-
-  /* USER CODE END USART3_Init 2 */
-
-}
-
-/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -420,7 +306,7 @@ void CAN1_RX0_IRQHandler(void) {
 /* USER CODE END Header_StartTaskLIN */
 void StartTaskLIN(void *argument)
 {
-	/* USER CODE BEGIN 5 */
+  /* USER CODE BEGIN 5 */
 
 	uint8_t pid;
 	/* Infinite loop */
@@ -432,7 +318,7 @@ void StartTaskLIN(void *argument)
 			envoyer_etat_lin(1);
 		}
 	}
-	/* USER CODE END 5 */
+  /* USER CODE END 5 */
 }
 
  /**
