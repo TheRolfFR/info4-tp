@@ -303,7 +303,7 @@ void CAN1_RX0_IRQHandler(void) {
     CAN1->RF0R |= CAN_RF0R_RFOM0;
     CAN_printframe(frame);
     /* process frame for my component */
-    xQueueSendToBackFromISR(canQueueHandle, (void*) frame, NULL);
+    xQueueSendToBackFromISR(canQueueHandle, (void*) &frame, NULL);
 }
 /* USER CODE END 4 */
 
@@ -345,7 +345,7 @@ void StartCANTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
-	xQueueCRReceive(canQueueHandle, &frame, portMAX_DELAY);7
+	xQueueReceive(canQueueHandle, &frame, portMAX_DELAY);
 
 	process_frame(frame);
     osDelay(1);
