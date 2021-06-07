@@ -13,16 +13,16 @@
 void process_frame(CAN_frame frame) {
 	// ID déjà filtré
 	// on va voir les derniers bits voir si c'est le port A (0b10)
-	if((frame.ExtId & 0x3) == 0b10 && frame.DLC == 1) {
+	if((frame.ExtId & 0xFF) == 0x10 && frame.DLC == 1) {
 		// clignotants
-		ETAT_METTRE_BIT(etat_commodo, frame.Data[0] & 0x4, CLIGNO_DROITE);
-		ETAT_METTRE_BIT(etat_commodo, frame.Data[0] & 0x8, CLIGNO_REPOS);
-		ETAT_METTRE_BIT(etat_commodo, frame.Data[0] & 0x10, CLIGNO_GAUCHE);
+		ETAT_METTRE_BIT(etat_commodo, frame.Data[0] & (1 << 2), CLIGNO_DROITE); // A2
+		ETAT_METTRE_BIT(etat_commodo, frame.Data[0] & (1 << 3), CLIGNO_REPOS); // A3
+		ETAT_METTRE_BIT(etat_commodo, frame.Data[0] & (1 << 4), CLIGNO_GAUCHE); // A4
 	}
 
 	// feux
 	// si c'est AN1 (0b01)
-	if((frame.ExtId & 0x3) == 0b01 && frame.DLC == 1) {
+	else if((frame.ExtId & 0xFF) == 0x01 && frame.DLC == 1) {
 		ETAT_METTRE_BIT(etat_commodo, frame.Data[0] == 0x80, FEUX_0); // 2.5V
 		ETAT_METTRE_BIT(etat_commodo, frame.Data[0] == 0xB3, FEUX_AUTO); // 3.5V
 		ETAT_METTRE_BIT(etat_commodo, frame.Data[0] == 0xFF, FEUX_VEILLEUSES); // 4.9 -> 5.0V

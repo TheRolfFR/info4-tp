@@ -39,12 +39,11 @@ extern osSemaphoreId_t linBinarySemaphoreHandle;
  * @param pid PID arrivant
  */
 void callback_LIN(uint8_t pid) {
+	uint8_t tmp_pid = pid;
     if (xPortIsInsideInterrupt()) {
-    	xQueueSendToBackFromISR(linIDqueueHandle, pid, NULL);
-    	xSemaphoreGiveFromISR(linBinarySemaphoreHandle, NULL);
+    	xQueueSendToBackFromISR(linIDqueueHandle,(void*) &tmp_pid, NULL);
     }
     else {
-    	xQueueSendToBack(linIDqueueHandle, pid, 0);
-    	xSemaphoreGive(linBinarySemaphoreHandle);
+    	xQueueSendToBack(linIDqueueHandle, (void*) &tmp_pid, 10);
     }
 }

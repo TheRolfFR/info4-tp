@@ -117,24 +117,30 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_CAN1_Init();
-  MX_USART2_UART_Init();
-  MX_USART3_UART_Init();
+  // MX_CAN1_Init();
+  // MX_USART2_UART_Init();
+  // MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
 
 	// contruct big id
 	uint32_t base = 0x10 << 24;
-	uint32_t receiver = 0x51 << 16; // numéro de l'esclave: 51 c'est clignotants
-	uint32_t emitter = 0x7 << 8; // numéro du poste
+	uint32_t receiver = 0x7 << 16; // numéro de l'esclave: 51 c'est clignotants
+	uint32_t emitter = 0x51 << 8; // numéro du poste
 	uint32_t fonction = 0;
 
-	uint32_t ext_id = base | receiver | emitter | fonction;
+	(void) base;
+	(void) receiver;
+	(void) emitter;
+	(void) fonction;
+
+	uint32_t ext_id = base | receiver | emitter | fonction | 0b100;
+	// uint32_t ext_id = 0b100; // IDE is 0b100
 	uint16_t CAN_FilterIdHigh = ((ext_id << 3) >> 16) & 0xffff;
 	uint16_t CAN_FilterIdLow = (uint16_t) (ext_id << 3) | CAN_ID_EXT;
 
 	// on filtre uniquement la base et le receveur
-	// uint32_t ext_msk = 0xFF << 16;
-	uint32_t ext_msk = 0;
+	uint32_t ext_msk = 0xFF00FF00;
+	// uint32_t ext_msk = 0b100; // IDE is 0b100
 	uint16_t CAN_FilterMskHigh = ((ext_msk << 3) >> 16) & 0xffff;
 	uint16_t CAN_FilterMskLow = (uint16_t) (ext_msk << 3);
 
@@ -143,6 +149,8 @@ int main(void)
 	UART_Init();
 	LIN_SetSlave();
 	LIN_SetReceiveCallback(callback_LIN);
+
+	USART2_puts("Demarrage scheduler");
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -418,7 +426,6 @@ void StartTaskLIN(void *argument)
 	/* Infinite loop */
 	for(;;)
 	{
-		xSemaphoreTake(linBinarySemaphoreHandle, portMAX_DELAY);
 		xQueueReceive(linIDqueueHandle, &pid, portMAX_DELAY);
 
 		if(pid == COMMODO_PID_DEMANDE) {
