@@ -6,6 +6,9 @@
  */
 #include "UART_LIN.h"
 
+#define COMMODO_PID_EVENT 0xCE // CommodoEvent
+#define COMMODO_PID_DEMANDE 0xCA // CommodoAsk
+
 /**
  * @brief Cette fonction envoit un message contentant l'etat des commodos par LIN
  * @param reponse Si non nulle, le message n'enverra qu'une reponse, sinon il enverra un message

@@ -6,8 +6,9 @@
  */
 #include "COM_LIN.h"
 
-#define COMMODO_PID_EVENT 0xCE // CommodoEvent
-#define COMMODO_PID_DEMANDE 0xCA // CommodoAsk
+#include "cmsis_os.h"
+#include "semphr.h"
+#include "queue.h"
 
 // on va chercher notre etat
 extern uint8_t etat_commodo;
@@ -30,12 +31,20 @@ void envoyer_etat_lin(uint8_t reponse) {
 	}
 }
 
+extern osMessageQueueId_t linIDqueueHandle;
+extern osSemaphoreId_t linBinarySemaphoreHandle;
+
 /**
  * @brief cette fonction reçoit Ses callbacks du LIN afin de répondre à des requêtes de la part de l'actionneur
  * @param pid PID arrivant
  */
 void callback_LIN(uint8_t pid) {
-	if(pid == COMMODO_PID_DEMANDE) {
-		envoyer_etat_lin(1);
-	}
+    if (xPortIsInsideInterrupt()) {
+    	xQueueSendToBackFromISR(linIDqueueHandle, pid, NULL);
+    	xSemaphoreGiveFromISR(linBinarySemaphoreHandle, NULL);
+    }
+    else {
+    	xQueueSendToBack(linIDqueueHandle, pid, 0);
+    	xSemaphoreGive(linBinarySemaphoreHandle);
+    }
 }
