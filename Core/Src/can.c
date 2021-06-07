@@ -69,7 +69,7 @@ void CAN_config(uint8_t extended, uint16_t Filter_ID_high,
 
 	/* Enable Interrupt */
 	CAN1->IER |= CAN_IT_TX_MAILBOX_EMPTY | CAN_IT_RX_FIFO0_MSG_PENDING;
-	NVIC_SetPriority(CAN1_RX0_IRQn, 1);
+	NVIC_SetPriority(CAN1_RX0_IRQn, 5);
 	NVIC_EnableIRQ(CAN1_RX0_IRQn); // Enable FIFO 0 RX interrupt
 
 	/* Request leave initialization */
