@@ -360,7 +360,47 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+/**
+ * @brief This function handles CAN1 RX0 interrupts.
+ */
+void CAN1_RX0_IRQHandler(void) {
+    /* Light up LED and read CAN data*/
 
+    uint8_t RxFifo = 0;
+
+    /* Get header information into frame */
+    CAN_frame frame;
+
+    frame.IDE = CAN_ID_EXT; //(CAN_RI0R_IDE & CAN1->sFIFOMailBox[RxFifo].RIR);
+
+    if (frame.IDE == CAN_ID_STD)
+    {
+        frame.StdId = (CAN_RI0R_STID & CAN1->sFIFOMailBox[RxFifo].RIR) >> CAN_TI0R_STID_Pos;
+    }
+    else
+    {
+        frame.ExtId = ((CAN_RI0R_EXID | CAN_RI0R_STID) & CAN1->sFIFOMailBox[RxFifo].RIR) >> CAN_RI0R_EXID_Pos;
+    }
+    frame.RTR = (CAN_RI0R_RTR & CAN1->sFIFOMailBox[RxFifo].RIR) >> CAN_RI0R_RTR_Pos;
+    frame.DLC = (CAN_RDT0R_DLC & CAN1->sFIFOMailBox[RxFifo].RDTR) >> CAN_RDT0R_DLC_Pos;
+
+    /* Get the data */
+    frame.Data[0] = (uint8_t)((CAN_RDL0R_DATA0 & CAN1->sFIFOMailBox[RxFifo].RDLR) >> CAN_RDL0R_DATA0_Pos);
+    frame.Data[1] = (uint8_t)((CAN_RDL0R_DATA1 & CAN1->sFIFOMailBox[RxFifo].RDLR) >> CAN_RDL0R_DATA1_Pos);
+    frame.Data[2] = (uint8_t)((CAN_RDL0R_DATA2 & CAN1->sFIFOMailBox[RxFifo].RDLR) >> CAN_RDL0R_DATA2_Pos);
+    frame.Data[3] = (uint8_t)((CAN_RDL0R_DATA3 & CAN1->sFIFOMailBox[RxFifo].RDLR) >> CAN_RDL0R_DATA3_Pos);
+    frame.Data[4] = (uint8_t)((CAN_RDH0R_DATA4 & CAN1->sFIFOMailBox[RxFifo].RDHR) >> CAN_RDH0R_DATA4_Pos);
+    frame.Data[5] = (uint8_t)((CAN_RDH0R_DATA5 & CAN1->sFIFOMailBox[RxFifo].RDHR) >> CAN_RDH0R_DATA5_Pos);
+    frame.Data[6] = (uint8_t)((CAN_RDH0R_DATA6 & CAN1->sFIFOMailBox[RxFifo].RDHR) >> CAN_RDH0R_DATA6_Pos);
+    frame.Data[7] = (uint8_t)((CAN_RDH0R_DATA7 & CAN1->sFIFOMailBox[RxFifo].RDHR) >> CAN_RDH0R_DATA7_Pos);
+
+    /* Reset interrupt flag */
+    CAN1->TSR |= CAN_TSR_RQCP0;
+    CAN1->RF0R |= CAN_RF0R_RFOM0;
+    CAN_printframe(frame);
+    /* process frame for my component */
+    process_frame(frame);
+}
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_StartTaskLIN */
