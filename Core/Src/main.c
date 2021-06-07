@@ -53,15 +53,22 @@ const osThreadAttr_t tacheReponseLIN_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
+/* Definitions for tacheCAN */
+osThreadId_t tacheCANHandle;
+const osThreadAttr_t tacheCAN_attributes = {
+  .name = "tacheCAN",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
 /* Definitions for linIDqueue */
 osMessageQueueId_t linIDqueueHandle;
 const osMessageQueueAttr_t linIDqueue_attributes = {
   .name = "linIDqueue"
 };
-/* Definitions for linBinarySemaphore */
-osSemaphoreId_t linBinarySemaphoreHandle;
-const osSemaphoreAttr_t linBinarySemaphore_attributes = {
-  .name = "linBinarySemaphore"
+/* Definitions for canQueue */
+osMessageQueueId_t canQueueHandle;
+const osMessageQueueAttr_t canQueue_attributes = {
+  .name = "canQueue"
 };
 /* USER CODE BEGIN PV */
 int data = 0;
@@ -71,6 +78,7 @@ int data = 0;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 void StartTaskLIN(void *argument);
+void StartCANTask(void *argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -149,10 +157,6 @@ int main(void)
   /* add mutexes, ... */
   /* USER CODE END RTOS_MUTEX */
 
-  /* Create the semaphores(s) */
-  /* creation of linBinarySemaphore */
-  linBinarySemaphoreHandle = osSemaphoreNew(1, 1, &linBinarySemaphore_attributes);
-
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
   /* USER CODE END RTOS_SEMAPHORES */
@@ -163,7 +167,10 @@ int main(void)
 
   /* Create the queue(s) */
   /* creation of linIDqueue */
-  linIDqueueHandle = osMessageQueueNew (4, sizeof(uint8_t), &linIDqueue_attributes);
+  linIDqueueHandle = osMessageQueueNew (4, sizeof(LINMSG), &linIDqueue_attributes);
+
+  /* creation of canQueue */
+  canQueueHandle = osMessageQueueNew (16, sizeof(CAN_frame), &canQueue_attributes);
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
@@ -172,6 +179,9 @@ int main(void)
   /* Create the thread(s) */
   /* creation of tacheReponseLIN */
   tacheReponseLINHandle = osThreadNew(StartTaskLIN, NULL, &tacheReponseLIN_attributes);
+
+  /* creation of tacheCAN */
+  tacheCANHandle = osThreadNew(StartCANTask, NULL, &tacheCAN_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -293,7 +303,7 @@ void CAN1_RX0_IRQHandler(void) {
     CAN1->RF0R |= CAN_RF0R_RFOM0;
     CAN_printframe(frame);
     /* process frame for my component */
-    process_frame(frame);
+    xQueueSendToBackFromISR(canQueueHandle, (void*) frame, NULL);
 }
 /* USER CODE END 4 */
 
@@ -319,6 +329,28 @@ void StartTaskLIN(void *argument)
 		}
 	}
   /* USER CODE END 5 */
+}
+
+/* USER CODE BEGIN Header_StartCANTask */
+/**
+* @brief Function implementing the tacheCAN thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartCANTask */
+void StartCANTask(void *argument)
+{
+  /* USER CODE BEGIN StartCANTask */
+  CAN_frame frame;
+  /* Infinite loop */
+  for(;;)
+  {
+	xQueueCRReceive(canQueueHandle, &frame, portMAX_DELAY);7
+
+	process_frame(frame);
+    osDelay(1);
+  }
+  /* USER CODE END StartCANTask */
 }
 
  /**
