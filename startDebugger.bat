@@ -1,0 +1,1 @@
+arm-none-eabi-gdb.exe .\Debug\mi52-tp1.elf

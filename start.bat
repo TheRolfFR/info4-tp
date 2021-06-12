@@ -1,0 +1,2 @@
+cd /D E:\ST\STM32CubeIDE_1.4.0\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.debug.openocd_1.4.0.202007081208\resources\openocd\st_scripts
+openocd -f "F:/Documents/UTBM/INFO4/MI52/mi52-tp1/mi52-tp1 Debug.cfg"
