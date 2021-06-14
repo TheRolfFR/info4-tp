@@ -71,7 +71,7 @@ void UART_Init (void)
 
 	/* USART interrupt Init */
 	__enable_irq();
-	NVIC_SetPriority(USART3_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(),0, 0));
+	NVIC_SetPriority(USART3_IRQn, 5);
 	NVIC_EnableIRQ(USART3_IRQn);
 
 	LIN_SetSlave();

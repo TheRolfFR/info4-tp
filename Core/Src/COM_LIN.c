@@ -20,8 +20,10 @@ LINMSG etatMSG;
  */
 void envoyer_etat_lin(uint8_t reponse) {
 	etatMSG.length = 1;
-	etat_commodo ^= 64;
+//	etat_commodo ^= 64;
 	etatMSG.data[0] = etat_commodo;
+
+	USART2_puts("envoi etat commodo\r\n");
 
 	if(reponse) {
 		SendResponse(&etatMSG);
@@ -45,11 +47,6 @@ void callback_LIN(uint8_t pid) {
 		demandeEtat.ID = tmp_pid;
 		demandeEtat.length = 0;
 
-	    if (xPortIsInsideInterrupt()) {
-	    	xQueueSendToBackFromISR(linIDqueueHandle,(void*) &demandeEtat, NULL);
-	    }
-	    else {
-	    	xQueueSendToBack(linIDqueueHandle, (void*) &demandeEtat, 10);
-	    }
+	    xQueueSendToBackFromISR(linIDqueueHandle,(void*) &demandeEtat, NULL);
 	}
 }
