@@ -67,8 +67,9 @@ void UART_Init (void)
 
 	// CLOCK du périphérique 1
 	uint32_t pclk = (SystemCoreClock >> APBPrescTable[(RCC->CFGR & RCC_CFGR_PPRE1)>> RCC_CFGR_PPRE1_Pos]);
-	// 9600bauds -> USARTDIV = (42mega)/(16*9600) = 273,4375 -> Mantissa = 273d=0x111 , Fraction = 0.4375*16 = 7d = 0x7
 	usart->BRR = UART_BRR_SAMPLING16(pclk, 9600);
+
+	// 9600bauds -> USARTDIV = (42mega)/(16*9600) = 273,4375 -> Mantissa = 273d=0x111 , Fraction = 0.4375*16 = 7d = 0x7
 	// usart->BRR = 0x00001117;
 
 	//Enable UART + OOOOVERSAMPLING

@@ -74,6 +74,20 @@ void vApplicationIdleHook( void )
 }
 /* USER CODE END 2 */
 
+/* USER CODE BEGIN PREPOSTSLEEP */
+__weak void PreSleepProcessing(uint32_t ulExpectedIdleTime)
+{
+/* place for user code */
+	USART2_puts("I will sleep\r\n");
+}
+
+__weak void PostSleepProcessing(uint32_t ulExpectedIdleTime)
+{
+/* place for user code */
+	USART2_puts("No i am not sleeping\r\n");
+}
+/* USER CODE END PREPOSTSLEEP */
+
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
 
