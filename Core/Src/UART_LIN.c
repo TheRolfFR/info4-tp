@@ -64,8 +64,13 @@ void UART_Init (void)
 	usart->CR2 = USART_CR2_LINEN; // + add USART_CR2_LBDIE but later
 	// No control mode, 3 sample point,
 	usart->CR3 = 0;
+
+	// CLOCK du périphérique 1
+	uint32_t pclk = (SystemCoreClock >> APBPrescTable[(RCC->CFGR & RCC_CFGR_PPRE1)>> RCC_CFGR_PPRE1_Pos]);
 	// 9600bauds -> USARTDIV = (42mega)/(16*9600) = 273,4375 -> Mantissa = 273d=0x111 , Fraction = 0.4375*16 = 7d = 0x7
-	usart->BRR = 0x00001117;
+	usart->BRR = UART_BRR_SAMPLING16(pclk, 9600);
+	// usart->BRR = 0x00001117;
+
 	//Enable UART + OOOOVERSAMPLING
 	usart->CR1 |= USART_CR1_UE;
 
@@ -132,6 +137,9 @@ void LIN_SetReceiveCallback(void (*callback)(uint8_t)) {
 }
 
 void USART3_IRQHandler() {
+
+	HAL_ResumeTick();
+
 	if(master) {
 		// si je suis maitre ce que je reçois c'est la réponse de l'esclave
 		if((usart->CR1 & USART_CR1_RXNEIE) && (usart->SR & USART_SR_RXNE)) {

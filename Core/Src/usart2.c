@@ -78,8 +78,10 @@ void USART2_init_int(void) {
 	USART2->CR2 = 0x00000000;
 	// No control mode, 3 sample point,
 	USART2->CR3 = 0x00000000;
-	// 19200bauds -> USARTDIV = 273.4375 -> Mantissa = 273d=0x111 , Fraction = 0.4375*16 = 7d = 0x7
-	USART2->BRR = 0x00001117;
+
+	uint32_t pclk = (SystemCoreClock >> APBPrescTable[(RCC->CFGR & RCC_CFGR_PPRE1)>> RCC_CFGR_PPRE1_Pos]);
+	USART2->BRR = UART_BRR_SAMPLING8(pclk, 19200);
+
 	//Enable UART
 	USART2->CR1 = 0x0000A02C;
 	//SET_BIT(USART2->CR1, USART_CR1_UE );

@@ -37,7 +37,14 @@ void CAN_config(uint8_t extended, uint16_t Filter_ID_high,
 	while ((CAN1->MSR & CAN_MSR_INAK) != CAN_MSR_INAK)
 		;
 
-	CAN1->BTR = 16;
+
+	uint32_t pclk = (SystemCoreClock >> APBPrescTable[(RCC->CFGR & RCC_CFGR_PPRE1)>> RCC_CFGR_PPRE1_Pos]);
+
+	pclk /= 10; // TOTAL 10 TQ
+
+	uint32_t btr = (pclk/250000) - 1;
+
+	CAN1->BTR = btr;
 	CAN1->BTR |= CAN_MODE_NORMAL | CAN_BS1_6TQ | CAN_BS2_3TQ | CAN_SJW_1TQ; // sinon CAN_MODE_LOOPBACK
 
 	/* Deactivate filter 0 */
